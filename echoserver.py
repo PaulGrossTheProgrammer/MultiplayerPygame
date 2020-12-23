@@ -1,7 +1,7 @@
 # Socket server
 
-import socket
 
+import socket
 port = 56789
 
 server_address = ('', port)
@@ -13,16 +13,14 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind(server_address)
 
 while True:
-    print(name + ' is waiting to receive message')
+    print(name + ' is waiting to receive message on port ' + str(port))
     data, address = sock.recvfrom(4096)
-
-    print('received {} bytes from {}'.format(len(data), address))
+    print('Received {} bytes from {}'.format(len(data), address))
 
     if data:
         message = data.decode('utf8')
+        print(message)
+        print("echoing...")
         echo_message = name + " is ECHOING: " + message
         echo_bytes = bytes(echo_message, 'utf8')
         sent = sock.sendto(echo_bytes, address)
-        # print('sent %s bytes back to %s' % (sent, address))
-        print(message)
-        print("echoing...")
