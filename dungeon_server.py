@@ -59,7 +59,7 @@ class ClientThread(threading.Thread):
             if login_request is not None:
                 username = login_request["username"]
                 print("logging in user [{}]".format(username))
-                response = "Logged in [{}]".format(username)
+                response = "LOGIN success:1,dummy:0".format(username)
 
             update_request = key_dict.get("UPDATE")
             if update_request is not None:
@@ -71,7 +71,9 @@ class ClientThread(threading.Thread):
                 x = click_request["x"]
                 y = click_request["y"]
                 update_gem_pos(x, y)
-                response = "CLICKED {},{}".format(x, y)
+                x, y = get_gem_pos()
+                response = "UPDATE x:{},y:{}".format(x, y)
+                print("[{}] clicked {},{}".format(username,x, y))
 
             self.csocket.send(bytes(response, 'UTF-8'))
         print("Client at ", clientAddress, " disconnected...")

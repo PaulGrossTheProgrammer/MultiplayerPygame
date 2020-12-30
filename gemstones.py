@@ -33,6 +33,9 @@ class Gemstone(pygame.sprite.Sprite):
         if self.sound is not None:
             self.sound.play()
 
+    def set_position(self, position):
+        self.rect.center = position
+
     def scroll_position(self, dx, dy):
         self.rect.x += dx
         self.rect.y += dy

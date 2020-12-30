@@ -28,7 +28,6 @@ class MessageClientThread(threading.Thread):
             server_message = in_data.decode()
             if server_message != "UPDATE":
                 self.messages_server.append(server_message)
-                print("From Server: {}".format(server_message))
 
             if len(messages_client) > 0:
                 out_data = messages_client.pop()
@@ -125,25 +124,32 @@ while game_on:
 
     if len(messages_server) > 0:
         latest_message = messages_server.pop()
-        print("latest message [{}]".format(latest_message))
 
-        '''
         key_dict = {}
         space_index = latest_message.find(" ")
+        # print("space_index={}".format(space_index))
         key = latest_message[0:space_index]
+        # print("key={}".format(key))
         values = latest_message[space_index + 1:]
+        # print("values={}".format(values))
         value_pairs = values.split(",")
+        # print("value_pairs={}".format(value_pairs))
         values_dict = {}
         for pair in value_pairs:
             pair_list = pair.split(":")
             values_dict[pair_list[0]] = pair_list[1]
-
+        # print("values_dict={}".format(values_dict))
         key_dict[key] = values_dict
 
-        x = key_dict["x"]
-        y = key_dict["y"]
-        print("x:{},y:{}.format(x, y)")
-        '''
+        update_response = key_dict.get("UPDATE")
+        if update_response is not None:
+            x = int(update_response["x"])
+            y = int(update_response["y"])
+            print("x:{},y:{}".format(x, y))
+
+            gem = gem_group.sprites()[0]
+            if gem is not None:
+                gem.set_position([x, y])
 
     if latest_message is not None:
         drawtext(screen, latest_message)
