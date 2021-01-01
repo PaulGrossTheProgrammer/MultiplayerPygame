@@ -1,6 +1,6 @@
 # Pygame Internet Client
 import threading
-import time
+# import datetime
 import socket
 
 import pygame
@@ -9,38 +9,43 @@ import gemstones
 
 from common import server_port
 
-class MessageClientThread(threading.Thread):
-    def __init__(self, server, username, messages_server, messages_client):
-        threading.Thread.__init__(self)
-        print("MessageClientThread Created:")
+# Each queue is used for THREAD-SAFE, one-way communication
+request_queue = []  # Append from Game window, pop(0) at Network Thread
+response_queue = []  # Append from Network Thread, pop(0) at Game window
+# TODO: Lookup threading condition for a better name than 'cv'
+cv = threading.Condition()
 
+# This thread establishes a socket connection to the Game Server.
+class GameClientSocketThread(threading.Thread):
+    def __init__(self, server):
+        threading.Thread.__init__(self)
         self.server = server
-        self.messages_server = messages_server
 
     def run(self):
-        print("MessageClientThread Started:")
+        print("GameClientSocketThread Started:")
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect((self.server, server_port))
-        login_message = "LOGIN username:{}".format(username)
-        client.sendall(bytes(login_message, 'UTF-8'))
+        request = "LOGIN username:{}".format(username)
         while True:
-            in_data = client.recv(1024)
-            server_message = in_data.decode()
-            if server_message != "UPDATE":
-                self.messages_server.append(server_message)
+            # Send the request to the server socket
+            client.sendall(bytes(request, 'UTF-8'))
 
-            if len(messages_client) > 0:
-                out_data = messages_client.pop()
-                print("Client request [{}]".format(out_data))
-            else:
-                # TODO - build a proper update request
-                out_data = "UPDATE id:1,test:2"
+            # Wait for a response from the server socket...
+            response = client.recv(1024).decode()
 
-            client.sendall(bytes(out_data, 'UTF-8'))
-            if out_data == 'bye':
-                break
+            # Send the response to the Game Window
+            response_queue.append(response)
 
-            time.sleep(0.1)
+            # Wait here for a new request from the Game Client Window
+            with cv:
+                while len(request_queue) == 0:
+                    cv.wait()
+                request = request_queue.pop(0)
+                if request.startswith("UPDATE"):
+                    # Clear other UPDATE requests
+                    for item in request_queue:
+                        if item.startswith("UPDATE"):
+                            request_queue.remove(item)
 
         client.close()
 
@@ -51,12 +56,8 @@ print("Connecting to {}".format(SERVER))
 
 username = input("Your name: ")
 
-messages_server = []
-messages_client = []
-
-messagethread = MessageClientThread(
-    SERVER, username, messages_server, messages_client)
-messagethread.start()
+client_socket_thread = GameClientSocketThread(SERVER)
+client_socket_thread.start()
 
 pygame.init()
 
@@ -99,11 +100,14 @@ def drawtext(screen, text, size=None, color=None, position=None):
 
     draw(screen, image, position)
 
-latest_message = None
+# latest_message = None
 
 gem_group = pygame.sprite.Group()
 gem_group.add(gemstones.GemGreen([100, 100]))
 
+# Game Client Window - Main Thread
+wait_for_update = False
+new_requests = []
 game_on = True
 while game_on:
     # Check for mouse and keyboard events
@@ -113,24 +117,37 @@ while game_on:
             print("User closed the window")
             game_on = False
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            x_click = event.pos[0]
-            y_click = event.pos[1]
-            messages_client.append("CLICK x:{},y:{}".format(x_click, y_click))
+            x = event.pos[0]
+            y = event.pos[1]
+            new_request = "CLICK x:{},y:{}".format(x, y)
+            print(new_request)
+            new_requests.append(new_request)
+            # current_request = True
+            wait_for_update is True
 
-    gem_group.update()
+    if wait_for_update is False:
+        new_requests.append("UPDATE id:1,test:2")
+        wait_for_update = True
 
-    screen.fill(BLACK)
-    gem_group.draw(screen)
+    # Send any new requests to the ClientSocketThread queue
+    if len(new_requests) > 0:
+        with cv:
+            request_queue.extend(new_requests)
+            cv.notify_all()
 
-    if len(messages_server) > 0:
-        latest_message = messages_server.pop()
+        # print("New requests Queued")
+        new_requests.clear()
+
+    # Process any responses from the ClientSocketThread queue
+    if len(response_queue) > 0:
+        response = response_queue.pop(0)
 
         key_dict = {}
-        space_index = latest_message.find(" ")
+        space_index = response.find(" ")
         # print("space_index={}".format(space_index))
-        key = latest_message[0:space_index]
+        key = response[0:space_index]
         # print("key={}".format(key))
-        values = latest_message[space_index + 1:]
+        values = response[space_index + 1:]
         # print("values={}".format(values))
         value_pairs = values.split(",")
         # print("value_pairs={}".format(value_pairs))
@@ -143,16 +160,23 @@ while game_on:
 
         update_response = key_dict.get("UPDATE")
         if update_response is not None:
+            wait_for_update = False
             x = int(update_response["x"])
             y = int(update_response["y"])
-            print("x:{},y:{}".format(x, y))
 
             gem = gem_group.sprites()[0]
             if gem is not None:
                 gem.set_position([x, y])
 
-    if latest_message is not None:
-        drawtext(screen, latest_message)
+    # Update sprites
+    gem_group.update()
+
+    # Draw game screen
+    screen.fill(BLACK)
+    gem_group.draw(screen)
+
+    # if response is not None:
+    #     drawtext(screen, response)
 
     pygame.display.flip()
 
