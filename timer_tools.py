@@ -9,10 +9,10 @@ class timer():
 
     def done(self):
         self.end = time.time()
-        self.seconds = int(self.end - self.start)
+        self.seconds = self.end - self.start
 
     def get_time_s(self):
         return int(self.seconds)
 
     def get_time_ms(self):
-        return self.seconds * 1000
+        return int(self.seconds * 1000)
