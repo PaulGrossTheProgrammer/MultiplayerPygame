@@ -5,14 +5,59 @@ import spritesheet
 import soundeffects
 from common import image_folder
 
+spritegroup = pygame.sprite.Group()
+next_id = 1
+
+def clear_gems():
+    global next_id
+
+    spritegroup.clear()
+    next_id = 1
+
+def add_gem(typename, pos, sprite_id=None):
+    global next_id
+
+    if sprite_id is None:
+        sprite_id = next_id
+        next_id += 1
+
+    sprite = None
+    if typename == "gemstones.GemGreen":
+        sprite = GemGreen(pos, sprite_id)
+        sprite.typename = typename
+
+    if sprite is not None:
+        spritegroup.add(sprite)
+
+    return sprite
+
+def get_gem(sprite_id):
+    for sprite in spritegroup:
+        if sprite.sprite_id == sprite_id:
+            return sprite
+    return None
+
+def remove_gem(sprite_id):
+    for sprite in spritegroup:
+        if sprite.sprite_id == sprite_id:
+            spritegroup.remove(sprite)
+
+def has_id(sprite_id):
+    for sprite in spritegroup:
+        if sprite.sprite_id == sprite_id:
+            return True
+    return False
+
 class Gemstone(pygame.sprite.Sprite):
     sound = None
 
     radius = 16  # Collsion radius
 
-    def __init__(self, position):
+    def __init__(self, position, sprite_id):
         super().__init__()
 
+        self.sprite_id = sprite_id
+        self.typename = None
         self.frame_curr = 0
         self.image = self.image_list[self.frame_curr]
         self.rect = self.image.get_rect()
@@ -35,6 +80,9 @@ class Gemstone(pygame.sprite.Sprite):
 
     def set_position(self, position):
         self.rect.center = position
+
+    def get_position(self):
+        return self.rect.center
 
     def scroll_position(self, dx, dy):
         self.rect.x += dx
