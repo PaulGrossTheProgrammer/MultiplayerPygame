@@ -1,11 +1,22 @@
 import threading
 import queue  # Thread-safe queue
 
+from time import sleep
+
 import timertools
+
+class SimpleThread(threading.Thread):
+
+    def run(self):
+        print("Starting")
+        sleep(1)
+        print("End")
+
+SimpleThread().start()
 
 q = queue.Queue()
 
-class MyThread(threading.Thread):
+class QThread(threading.Thread):
 
     def run(self):
         print("New Thread starting up")
@@ -20,7 +31,7 @@ class MyThread(threading.Thread):
 
             print("THREAD took [{}] off the queue".format(stuff))
 
-MyThread().start()
+QThread().start()
 
 def tank_litres(analog_read):
     return (1024 - analog_read) * 1000/1024
