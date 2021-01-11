@@ -1,5 +1,4 @@
 # Data and code common to the whole game
-import random
 import pygame
 
 server_port = 56789

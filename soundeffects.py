@@ -22,3 +22,11 @@ pickup_5 = pygame.mixer.Sound(sounds_folder + "Item2A.wav")
 pickup_5.set_volume(0.5)
 pickup_6 = pygame.mixer.Sound(sounds_folder + "Menu2A.wav")
 pickup_6.set_volume(0.5)
+
+def play_effect(name):
+    if name == "fireball":
+        fireball.play()
+    elif name == "explosion":
+        explosion.play()
+    elif name == "pickup_1":
+        pickup_1.play()
