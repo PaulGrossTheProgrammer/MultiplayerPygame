@@ -9,8 +9,6 @@ import pygame
 import common
 import message
 import gemstones
-import soundeffects
-
 
 # Each queue is used for THREAD-SAFE, one-way communication
 request_queue = queue.Queue()  # GameClientThread -> SocketThread
@@ -54,10 +52,33 @@ username = input("Your name: ")
 client_socket_thread = GameClientSocketThread(SERVER)
 client_socket_thread.start()
 
+
 pygame.init()
 
 pygame.display.set_mode([common.SCREEN_WIDTH, common.SCREEN_HEIGHT])
 screen = pygame.display.get_surface()
+
+class StatusLine(pygame.sprite.Sprite):
+
+    font_30 = pygame.font.SysFont(pygame.font.get_default_font(), 30)
+    score = 0
+
+    def __init__(self, position):
+        super().__init__()
+        self.position = position
+        self.update_image()
+
+    def update_image(self):
+        text = "Name: {}".format(username)
+        self.image = self.font_30.render(text, True, common.WHITE)
+        self.rect = self.image.get_rect()
+        self.rect.center = self.position
+
+
+status_group = pygame.sprite.Group()
+status_sprite = StatusLine([150, 20])
+status_group.add(status_sprite)
+
 
 # Game Client Window - Main Thread
 wait_for_update = False
@@ -138,10 +159,12 @@ while game_on:
 
     # Update sprite animation
     gemstones.update()
+    status_group.update()
 
     # Draw game screen
     screen.fill(common.BLACK)
     gemstones.draw(screen)
+    status_group.draw(screen)
 
     pygame.display.flip()
 

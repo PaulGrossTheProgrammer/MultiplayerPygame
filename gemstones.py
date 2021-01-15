@@ -80,6 +80,10 @@ def random_gem(position):
 
 # Client/Server code
 
+spritegroup = pygame.sprite.Group()
+next_id = 0
+# TODO - If next_id is large and the spritegroup is empty, reset the next_id
+
 # Called by the server to encode the sprites as string for sending via Internet
 # TODO - handle incremental updates:
 # TODO - put complete:incremental or update:complete in response
@@ -142,9 +146,6 @@ def decode_update(datalines):
         if curr_id not in id_list:
             remove_gem(curr_id)
 
-spritegroup = pygame.sprite.Group()
-next_id = 0
-# TODO - If next_id is large and the spritegroup is empty, reset the next_id
 
 def draw(screen):
     spritegroup.draw(screen)

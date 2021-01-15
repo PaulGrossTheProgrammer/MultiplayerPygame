@@ -7,7 +7,8 @@ class timer():
         self.start = None
         self.end = None
         self.seconds = None
-        self.history = []
+        self.length_history = []  # Duration of events
+        self.end_history = []  # End time of events
 
     def on(self):
         self.start = time.time()
@@ -16,31 +17,42 @@ class timer():
     def off(self):
         self.end = time.time()
         self.seconds = self.end - self.start
-        self.history.append(self.seconds)
-        while len(self.history) > self.memory:
-            self.history.pop(0)  # Remove the oldest value
+        self.length_history.append(self.seconds)
+        self.end_history.append(self.end)
+        while len(self.length_history) > self.memory:
+            self.length_history.pop(0)  # Remove the oldest value
 
-    def get_time(self):
+    def duration(self):
         return self.seconds
 
-    def get_time_s(self):
+    def duration_s(self):
         return int(self.get_time())
 
-    def get_time_ms(self):
+    def duration_ms(self):
         return int(self.get_time() * 1000)
 
-    def get_avgtime(self):
-        if len(self.history) == 0:
+    def avg_time(self):
+        if len(self.length_history) == 0:
             return 0
 
         total = 0
-        for value in self.history:
+        for value in self.length_history:
             total += value
 
-        return total/len(self.history)
+        return total/len(self.length_history)
 
-    def get_avgtime_s(self):
-        return int(self.get_avgtime())
+    def avg_time_s(self):
+        return int(self.avg_time())
 
-    def get_avgtime_ms(self):
-        return int(self.get_avgtime() * 1000)
+    def avg_time_ms(self):
+        return int(self.avg_time() * 1000)
+
+    def avg_rate(self):
+        if len(self.end_history) < 2:
+            return 0
+
+        diff = self.end_history[-1] - self.end_history[0]
+        if diff > 0:
+            return len(self.end_history)/diff
+        else:
+            return 0
