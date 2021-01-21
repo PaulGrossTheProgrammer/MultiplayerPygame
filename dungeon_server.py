@@ -110,10 +110,12 @@ while game_on:
                     y = int(data["y"])
                     sprite = gemstones.add_gem("GemGreen", [x, y])
                     response = "response:added\n".format(x, y)
+                    username = logins[socket_thread]
                     print("[{}] Added gem at {},{}".format(username, x, y))
                 elif request_type == "delete":
                     sprite_id = int(data["id"])
                     if gemstones.remove_gem(sprite_id):
+                        username = logins[socket_thread]
                         print("[{}] deleted id {}".format(username, sprite_id))
                         response = "response:deleted\n"
                     else:
