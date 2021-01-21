@@ -134,9 +134,9 @@ def decode_update(datalines):
             y = int(data["y"])
             id_list.append(sprite_id)
 
-            sprite = get_gem(sprite_id)
+            sprite = get(sprite_id)
             if sprite is None:
-                add_gem(sprite_type, [x, y], sprite_id)
+                add(sprite_type, [x, y], sprite_id)
             else:
                 sprite.set_position([x, y])
 
@@ -144,7 +144,7 @@ def decode_update(datalines):
     for sprite in spritegroup:
         curr_id = sprite.sprite_id
         if curr_id not in id_list:
-            remove_gem(curr_id)
+            remove(curr_id)
 
 
 def draw(screen):
@@ -153,13 +153,13 @@ def draw(screen):
 def update():
     spritegroup.update()
 
-def clear_gems():
+def clear():
     global next_id
 
     spritegroup.clear()
     next_id = 1
 
-def add_gem(typename, pos, sprite_id=None):
+def add(typename, pos, sprite_id=None):
     global next_id
 
     if sprite_id is None:
@@ -182,13 +182,13 @@ def add_gem(typename, pos, sprite_id=None):
 
     return sprite
 
-def get_gem(sprite_id):
+def get(sprite_id):
     for sprite in spritegroup:
         if sprite.sprite_id == sprite_id:
             return sprite
     return None
 
-def remove_gem(sprite_id):
+def remove(sprite_id):
     for sprite in spritegroup:
         if sprite.sprite_id == sprite_id:
             spritegroup.remove(sprite)
