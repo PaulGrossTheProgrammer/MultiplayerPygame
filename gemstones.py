@@ -173,6 +173,9 @@ def add_gem(typename, pos, sprite_id=None):
     elif typename == "GemRed":
         sprite = GemRed(pos, sprite_id)
         sprite.typename = typename
+    elif typename == "GemPink":
+        sprite = GemPink(pos, sprite_id)
+        sprite.typename = typename
 
     if sprite is not None:
         spritegroup.add(sprite)
