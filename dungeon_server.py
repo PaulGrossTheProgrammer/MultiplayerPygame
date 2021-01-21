@@ -71,8 +71,8 @@ class GameServerSocketThread(threading.Thread):
 
 # Game Server
 
-gemstones.add_gem("GemGreen", [100, 100])
-gemstones.add_gem("GemRed", [200, 100])
+gemstones.add("GemGreen", [100, 100])
+gemstones.add("GemRed", [200, 100])
 
 logins = {}  # Stores usernames for Client Sockets
 
@@ -108,13 +108,13 @@ while game_on:
                 elif request_type == "add":
                     x = int(data["x"])
                     y = int(data["y"])
-                    sprite = gemstones.add_gem("GemGreen", [x, y])
+                    sprite = gemstones.add("GemGreen", [x, y])
                     response = "response:added\n".format(x, y)
                     username = logins[socket_thread]
                     print("[{}] Added gem at {},{}".format(username, x, y))
                 elif request_type == "delete":
                     sprite_id = int(data["id"])
-                    if gemstones.remove_gem(sprite_id):
+                    if gemstones.remove(sprite_id):
                         username = logins[socket_thread]
                         print("[{}] deleted id {}".format(username, sprite_id))
                         response = "response:deleted\n"
