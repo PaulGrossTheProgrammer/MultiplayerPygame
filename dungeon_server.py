@@ -82,46 +82,49 @@ logins = {}  # Stores usernames for Client Sockets
 print("Game Running:")
 game_on = True
 while game_on:
-    # Process any available requests from the GameServerSocketThread queue
-    try:
-        # DON'T WAIT on queue, always move on even if the queue is empty
-        socket_thread, request = shared_request_queue.get_nowait()
-    except(queue.Empty):
-        socket_thread = None
-        request = None
+    # Process every request from the GameServerSocketThread queue
+    while not shared_request_queue.empty():
+        try:
+            # DON'T WAIT on queue, always move on even if the queue is empty
+            socket_thread, request = shared_request_queue.get_nowait()
+        except(queue.Empty):
+            socket_thread = None
+            request = None
 
-    if request is not None:
-        response = "response:none"  # Default response
+        if request is not None:
+            response = "response:none"  # Default response
 
-        for line in request.splitlines(False):
-            data = message.decode_dictionary(line)
-            if "request" in data:
-                request_type = data["request"]
-                if request_type == "login":
-                    username = data["username"]
-                    print("logging in user [{}]".format(username))
-                    response = "response:login,username:{}\n".format(username)
-                    logins[socket_thread] = username
-                elif request_type == "update":
-                    # TODO - add other sprite modules
-                    response = gemstones.encode_update()
-                elif request_type == "add":
-                    x = int(data["x"])
-                    y = int(data["y"])
-                    sprite = gemstones.add("GemGreen", [x, y])
-                    response = "response:added\n".format(x, y)
-                    username = logins[socket_thread]
-                    print("[{}] Added gem at {},{}".format(username, x, y))
-                elif request_type == "delete":
-                    sprite_id = int(data["id"])
-                    if gemstones.remove(sprite_id):
+            for line in request.splitlines(False):
+                data = message.decode_dictionary(line)
+                if "request" in data:
+                    request_type = data["request"]
+                    if request_type == "login":
+                        username = data["username"]
+                        print("logging in user [{}]".format(username))
+                        response = "response:login,username:{}\n".format(
+                            username)
+                        logins[socket_thread] = username
+                    elif request_type == "update":
+                        # TODO - add other sprite modules
+                        response = gemstones.encode_update()
+                    elif request_type == "add":
+                        x = int(data["x"])
+                        y = int(data["y"])
+                        sprite = gemstones.add("GemGreen", [x, y])
+                        response = "response:added\n".format(x, y)
                         username = logins[socket_thread]
-                        print("[{}] deleted id {}".format(username, sprite_id))
-                        response = "response:deleted\n"
-                    else:
-                        response = "response:already_deleted\n"
+                        print("[{}] Added gem at {},{}".format(username, x, y))
+                    elif request_type == "delete":
+                        sprite_id = int(data["id"])
+                        if gemstones.remove(sprite_id):
+                            username = logins[socket_thread]
+                            print("[{}] deleted id {}".format(
+                                username, sprite_id))
+                            response = "response:deleted\n"
+                        else:
+                            response = "response:already_deleted\n"
 
-        socket_thread.private_response_queue.put(response)
+            socket_thread.private_response_queue.put(response)
 
     # Game logic goes below here...
 
