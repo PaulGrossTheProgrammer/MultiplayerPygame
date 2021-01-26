@@ -81,6 +81,7 @@ status_group.add(status_sprite)
 
 
 # Game Client Window - Main Thread
+curr_gemtype = "GemGreen"
 wait_for_update = False
 new_requests = []
 game_on = True
@@ -91,6 +92,15 @@ while game_on:
         if event.type == pygame.QUIT:
             print("User closed the window")
             game_on = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_g:
+                curr_gemtype = "GemGreen"
+            if event.key == pygame.K_r:
+                curr_gemtype = "GemRed"
+            if event.key == pygame.K_p:
+                curr_gemtype = "GemPink"
+            if event.key == pygame.K_d:
+                curr_gemtype = "GemDiamond"
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             click_pos = event.pos
             # Was a gem clicked?
@@ -105,8 +115,9 @@ while game_on:
                 print(new_request)
                 new_requests.append(new_request)
             else:
-                template = "request:add,x:{},y:{}\n"
-                new_request = template.format(click_pos[0], click_pos[1])
+                template = "request:add,gemtype:{},x:{},y:{}\n"
+                new_request = template.format(curr_gemtype,
+                                              click_pos[0], click_pos[1])
                 print(new_request)
                 new_requests.append(new_request)
             # wait_for_update is True
