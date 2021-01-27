@@ -3,8 +3,15 @@
 import socket
 import threading
 import queue
+# import random
+
+import pygame
 
 import gemstones
+import effects
+import monsters
+import fireball
+import dungeontiles
 import message
 import common
 
@@ -71,8 +78,13 @@ class GameServerSocketThread(threading.Thread):
 
 # Game Server
 
-gemstones.add("GemGreen", [100, 100])
-gemstones.add("GemRed", [200, 100])
+g1 = gemstones.add("GemGreen", [100, 100])
+g2 = gemstones.add("GemRed", [200, 100])
+m1 = monsters.add("GreenZombie", [300, 300])
+m1.set_player(g1)
+m2 = monsters.add("GreenZombie", [400, 400])
+m2.set_player(g2)
+dungeontiles.add("FireballTower", [500, 500])
 
 logins = {}  # Stores usernames for Client Sockets
 
@@ -105,7 +117,11 @@ while game_on:
                 elif request_type == "update":
                     # TODO - add other sprite modules
                     response = gemstones.encode_update()
-                elif request_type == "add":
+                    response += effects.encode_update()
+                    response += monsters.encode_update()
+                    response += fireball.encode_update()
+                    response += dungeontiles.encode_update()
+                elif request_type == "add-gem":
                     x = int(data["x"])
                     y = int(data["y"])
                     gemtype = data["gemtype"]
@@ -113,7 +129,15 @@ while game_on:
                     response = "response:added\n".format(x, y)
                     username = logins[socket_thread]
                     print("[{}] Added gem at {},{}".format(username, x, y))
-                elif request_type == "delete":
+                elif request_type == "add-fireball":
+                    x = int(data["x"])
+                    y = int(data["y"])
+                    angle = float(data["angle"])
+                    sprite = fireball.add("FireballRed", [x, y], 500, angle)
+                    response = "response:added\n".format(x, y)
+                    username = logins[socket_thread]
+                    print("[{}] Added fireball".format(username))
+                elif request_type == "delete-gem":
                     sprite_id = int(data["id"])
                     if gemstones.remove(sprite_id):
                         username = logins[socket_thread]
@@ -125,5 +149,48 @@ while game_on:
         socket_thread.private_response_queue.put(response)
 
     # Game logic goes below here...
+    gemstones.update_server()
+    dungeontiles.update_server()
+    effects.update_server()
+    monsters.update_server()
+    fireball.update_server()
+
+    # Each monster targets the nearest gem
+    for monster in monsters.spritegroup:
+        if len(gemstones.spritegroup) == 0:
+            monster.set_player(None)
+            monster.stop()
+        else:
+            closest_gem = None
+            closest_dist2 = None
+            for gem in gemstones.spritegroup:
+                dx = gem.rect.center[0] - monster.rect.center[0]
+                dy = gem.rect.center[1] - monster.rect.center[1]
+                curr_dist2 = dx * dx + dy * dy
+                if closest_dist2 is None or curr_dist2 < closest_dist2:
+                    closest_dist2 = curr_dist2
+                    closest_gem = gem
+        if closest_gem is not None:
+            monster.set_player(closest_gem)
+
+    # Remove gems when the monster collides
+    pygame.sprite.groupcollide(gemstones.spritegroup, monsters.spritegroup,
+                               True, False,
+                               collided=pygame.sprite.collide_circle)
+
+    # Explode completed fireballs
+    for sprite in fireball.spritegroup:
+        if sprite.done is True:
+            position = sprite.get_position()
+            effects.add("ExplosionRed", position)
+            sprite.kill()
+
+    '''
+    # Randomly place an explosion
+    if random.random() < 0.01:
+        effects.add("ExplosionRed",
+                    [random.randint(0, common.SCREEN_WIDTH),
+                     random.randint(0, common.SCREEN_HEIGHT)])
+    '''
 
     common.clock.tick(common.frames_per_second)

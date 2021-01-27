@@ -1,40 +1,45 @@
-# Gemstone sprites
+# Dungeon Tiles
 import random
 import pygame
+
+import common
 import spritesheet
-import soundeffects
-from common import image_folder
 
+# Load the dungeon tiles spritesheets
+frames = []
+ss_names = "hyptosis_tile-art-batch-{}.png"
+for number in range(1, 5):
+    ss = spritesheet.Spritesheet(
+        30, 30, filename=common.image_folder+ss_names.format(number))
+    frames.append(ss.get_frames())
 
-class Gemstone(pygame.sprite.Sprite):
-    sound = None
+def get_tile_image(sheet, row, col):
+    frame_list = frames[sheet-1]
+    image = frame_list[row*30+col]
+    return image
 
-    radius = 16  # Collsion radius
+# determine tile size from first tile
+tile_size = get_tile_image(1, 0, 0).get_rect().width
 
-    def __init__(self, position, sprite_id):
+wall_images = []
+wall_images.append(get_tile_image(1, 7, 0))
+wall_images.append(get_tile_image(1, 7, 1))
+wall_images.append(get_tile_image(1, 7, 2))
+wall_images.append(get_tile_image(1, 7, 3))
+wall_images.append(get_tile_image(1, 7, 4))
+wall_images.append(get_tile_image(1, 8, 3))
+
+# Parent Class for all tye of dungeon tiles
+class Tile(pygame.sprite.Sprite):
+
+    def __init__(self, sprite_id):
         super().__init__()
-
         self.sprite_id = sprite_id
         self.typename = None
-        self.frame_curr = 0
-        self.image = self.image_list[self.frame_curr]
-        self.rect = self.image.get_rect()
-        self.rect.center = position
-        self.frame_change_counter = 0
-        self.frame_change = 5
 
-    def update(self):
-        self.frame_change_counter += 1
-        if self.frame_change_counter >= self.frame_change:
-            self.frame_change_counter = 0
-            self.frame_curr += 1  # Change frame
-            if self.frame_curr >= len(self.image_list):
-                self.frame_curr = 0
-        self.image = self.image_list[self.frame_curr]
-
-    def play_sound(self):
-        if self.sound is not None:
-            self.sound.play()
+    def scroll_position(self, dx, dy):
+        self.rect.x += dx
+        self.rect.y += dy
 
     def set_position(self, position):
         self.rect.center = position
@@ -42,41 +47,49 @@ class Gemstone(pygame.sprite.Sprite):
     def get_position(self):
         return self.rect.center
 
-    def scroll_position(self, dx, dy):
-        self.rect.x += dx
-        self.rect.y += dy
+class WallTile(Tile):
+    radius = 16
 
-class GemDiamond(Gemstone):
-    sheet = spritesheet.Spritesheet(
-        7, 6, filename=image_folder+"diamondspinning.png")
-    image_list = sheet.get_frames(end_frame=38)
-    sound = soundeffects.pickup_4
+    def __init__(self, position, sprite_id):
+        super().__init__(sprite_id)
+        self.image = random.choice(wall_images)
+        self.rect = self.image.get_rect()
+        self.rect.center = position
 
-class GemGreen(Gemstone):
-    sheet = spritesheet.Spritesheet(
-        32, 1, filename=image_folder+"gem-green.png")
-    image_list = sheet.get_frames()
-    sound = soundeffects.pickup_1
 
-class GemRed(Gemstone):
-    sheet = spritesheet.Spritesheet(
-        32, 1, filename=image_folder+"gem-red.png")
-    image_list = sheet.get_frames()
-    sound = soundeffects.pickup_2
+teleport_source_image = get_tile_image(4, 5, 6)
+teleport_target_image = get_tile_image(4, 6, 6)
 
-class GemPink(Gemstone):
-    sheet = spritesheet.Spritesheet(
-        32, 1, filename=image_folder + "gem-pink.png")
-    image_list = sheet.get_frames()
-    sound = soundeffects.pickup_3
+class TeleportSourceTile(Tile):
+    radius = 16
 
-randomgemtypes = [GemGreen, GemRed, GemPink]
+    def __init__(self, position, teleportx, teleporty, sprite_id):
+        super().__init__(sprite_id)
+        self.image = teleport_source_image
+        self.rect = self.image.get_rect()
+        self.rect.center = position
+        self.teleportx = teleportx
+        self.teleporty = teleporty
 
-def random_gem(position):
-    gemtype = random.choice(randomgemtypes)
-    gem = gemtype(position)
-    return gem
+class TeleportTargetTile(Tile):
+    radius = 16
 
+    def __init__(self, position, sprite_id):
+        super().__init__(sprite_id)
+        self.image = teleport_target_image
+        self.rect = self.image.get_rect()
+        self.rect.center = position
+
+
+fireball_tower_image = get_tile_image(2, 22, 9)
+
+class FireballTower(Tile):
+
+    def __init__(self, position, sprite_id):
+        super().__init__(sprite_id)
+        self.image = fireball_tower_image
+        self.rect = self.image.get_rect()
+        self.rect.center = position
 
 # Client/Server code
 
@@ -89,7 +102,7 @@ next_id = 0
 # TODO - put complete:incremental or update:complete in response
 def encode_update():
     if len(spritegroup) == 0:
-        return "response:update,module:gemstones,type:EMPTY\n"
+        return "response:update,module:dungeontiles,type:EMPTY\n"
 
     # Group the sprites by type to reduce the length of the response
     grouped_sprites = {}
@@ -108,7 +121,7 @@ def encode_update():
         group.append([sprite_id, x, y])
 
     # Build the complete response from the grouped sprites
-    response = "response:update,module:gemstones\n"
+    response = "response:update,module:dungeontiles\n"
     template_type = "type:{}\n"
     template_sprite = "id:{},x:{},y:{}\n"
     for name, group in grouped_sprites.items():
@@ -170,17 +183,17 @@ def add(typename, pos, sprite_id=None):
         next_id += 1
 
     sprite = None
-    if typename == "GemGreen":
-        sprite = GemGreen(pos, sprite_id)
+    if typename == "WallTile":
+        sprite = WallTile(pos, sprite_id)
         sprite.typename = typename
-    elif typename == "GemRed":
-        sprite = GemRed(pos, sprite_id)
+    elif typename == "TeleportSourceTile":
+        sprite = TeleportSourceTile(pos, sprite_id)
         sprite.typename = typename
-    elif typename == "GemPink":
-        sprite = GemPink(pos, sprite_id)
+    elif typename == "TeleportTargetTile":
+        sprite = TeleportTargetTile(pos, sprite_id)
         sprite.typename = typename
-    elif typename == "GemDiamond":
-        sprite = GemDiamond(pos, sprite_id)
+    elif typename == "FireballTower":
+        sprite = FireballTower(pos, sprite_id)
         sprite.typename = typename
 
     if sprite is not None:

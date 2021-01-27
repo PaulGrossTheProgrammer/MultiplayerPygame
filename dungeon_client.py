@@ -3,12 +3,18 @@
 import threading
 import queue
 import socket
+import math
+# import random
 
 import pygame
 
 import common
 import message
 import gemstones
+import effects
+import monsters
+import dungeontiles
+import fireball
 
 # Each queue is used for THREAD-SAFE, one-way communication
 request_queue = queue.Queue()  # GameClientThread -> SocketThread
@@ -82,6 +88,7 @@ status_group.add(status_sprite)
 
 # Game Client Window - Main Thread
 curr_gemtype = "GemGreen"
+fireball_start = None
 wait_for_update = False
 new_requests = []
 game_on = True
@@ -102,25 +109,43 @@ while game_on:
             if event.key == pygame.K_d:
                 curr_gemtype = "GemDiamond"
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            click_pos = event.pos
             # Was a gem clicked?
-            clicked_id = None
-            for sprite in gemstones.spritegroup:
-                if sprite.rect.collidepoint(click_pos):
-                    clicked_id = sprite.sprite_id
+            clicked_gem = gemstones.collide_point_first(event.pos)
+            tower = dungeontiles.collide_point_first_type(
+                event.pos, "FireballTower")
 
-            if clicked_id is not None:
-                template = "request:delete,id:{}\n"
-                new_request = template.format(clicked_id)
+            if clicked_gem is not None:
+                template = "request:delete-gem,id:{}\n"
+                new_request = template.format(clicked_gem.sprite_id)
                 print(new_request)
                 new_requests.append(new_request)
+            elif tower is not None:
+                fireball_start = tower.rect.center
             else:
-                template = "request:add,gemtype:{},x:{},y:{}\n"
-                new_request = template.format(curr_gemtype,
-                                              click_pos[0], click_pos[1])
+                template = "request:add-gem,gemtype:{},x:{},y:{}\n"
+                new_request = template.format(
+                    curr_gemtype, event.pos[0], event.pos[1])
                 print(new_request)
+                '''
+                angle = 2 * math.pi * random.random()
+                template = "request:add-fireball,x:{},y:{},angle:{}\n"
+                new_request = template.format(
+                    event.pos[0], event.pos[1], angle)
+                print(new_request)
+                '''
                 new_requests.append(new_request)
-            # wait_for_update is True
+        if (event.type == pygame.MOUSEBUTTONUP and
+                event.button == 1 and
+                fireball_start is not None):
+            dx = event.pos[0] - fireball_start[0]
+            dy = event.pos[1] - fireball_start[1]
+            angle = math.atan2(dy, dx)
+            template = "request:add-fireball,x:{},y:{},angle:{}\n"
+            new_request = template.format(
+                fireball_start[0], fireball_start[1], angle)
+            fireball_start = None
+            print(new_request)
+            new_requests.append(new_request)
 
     # If we are not wait for an update, and there are
     # no other requests, request an update
@@ -167,15 +192,35 @@ while game_on:
             # TODO - process other sprite modules
             if module == "gemstones":
                 gemstones.decode_update(datalines)
+            elif module == "effects":
+                effects.decode_update(datalines)
+            elif module == "monsters":
+                monsters.decode_update(datalines)
+            elif module == "fireball":
+                fireball.decode_update(datalines)
+            elif module == "dungeontiles":
+                dungeontiles.decode_update(datalines)
 
     # Update sprite animation
     gemstones.update()
+    effects.update()
+    monsters.update()
+    fireball.update()
+    dungeontiles.update()
     status_group.update()
 
     # Draw game screen
     screen.fill(common.BLACK)
     gemstones.draw(screen)
+    dungeontiles.draw(screen)
+    effects.draw(screen)
+    monsters.draw(screen)
+    fireball.draw(screen)
     status_group.draw(screen)
+
+    if fireball_start is not None:
+        pygame.draw.line(screen, common.RED,
+                         fireball_start, pygame.mouse.get_pos(), 2)
 
     pygame.display.flip()
 

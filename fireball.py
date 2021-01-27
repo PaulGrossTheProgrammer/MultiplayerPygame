@@ -1,87 +1,100 @@
-# Animated effects
-
+# Fireball sprites
+import math
 import pygame
-import spritesheet
+
 import common
+import spritesheet
 from common import image_folder
 
-# Parent Class for animated sprites that play through only once.
-class MomentaryEffect(pygame.sprite.Sprite):
+class DirectedSprite(pygame.sprite.Sprite):
+    speed = 4
 
-    def __init__(self, position, sprite_id):
+    def __init__(self, position, distance, angle, sprite_id):
         super().__init__()
 
         self.sprite_id = sprite_id
         self.typename = None
-        self.image = self.frames[0]
+        self.angle = angle
+        self.angle_frames = self.sheet.get_angled_image_list(angle)
+
+        # Track position as float values for better accuracy
+        self.position_x = float(position[0])
+        self.position_y = float(position[1])
+
+        self.speed *= 60.0/common.frames_per_second
+        self.frame_curr = 0
+        self.image = self.angle_frames[self.frame_curr]
         self.rect = self.image.get_rect()
         self.rect.center = position
+        # self.frame_change_trigger = 5
+        self.frame_change_trigger = int(common.frames_per_second / 12)
+        self.frame_change_counter = 0
+        self.delta_x = math.cos(angle) * self.speed
+        self.delta_y = math.sin(angle) * self.speed
+        self.distance_end = distance
+        self.distance_acc = 0
         self.done = False
 
-        # Animation
-        self.frame_curr = 0
-        self.frame_change_trigger = int(common.frames_per_second / 20)
-        self.frame_change_counter = 0
-
     def update(self):
+        if self.done is True:
+            return
+
         self.frame_change_counter += 1
         if self.frame_change_counter >= self.frame_change_trigger:
             self.frame_change_counter = 0
             self.frame_curr += 1  # Change frame
-            if self.frame_curr < len(self.frames):
-                self.image = self.frames[self.frame_curr]
-            else:
-                self.done = True
-                self.kill()
+            if self.frame_curr >= len(self.angle_frames):
+                self.frame_curr = 0
+
+        # Update float postion values for better accuracy
+        self.position_x += self.delta_x
+        self.position_y += self.delta_y
+
+        self.rect.center = [int(self.position_x), int(self.position_y)]
+        self.distance_acc += self.speed
+        if self.distance_acc >= self.distance_end:
+            self.done = True
+            # self.kill()
+
+        self.image = self.angle_frames[self.frame_curr]
+
+    def update_server(self):
+        self.update()
 
     def set_position(self, position):
+        self.position_x = position[0]
+        self.position_y = position[1]
         self.rect.center = position
 
     def get_position(self):
-        return self.rect.center
+        return [self.position_x, self.position_y]
 
     def scroll_position(self, dx, dy):
-        self.rect.x += dx
-        self.rect.y += dy
+        self.position_x += dx
+        self.position_y += dy
+        self.rect.center = [int(self.position_x), int(self.position_y)]
 
-class ExplosionRed(MomentaryEffect):
-    sheet = spritesheet.Spritesheet(
-        4, 4, filename=image_folder+"Explosion-01.png")
-    frames = sheet.get_frames()
 
-class ExplosionGreen(MomentaryEffect):
+class FireballRed(DirectedSprite):
     sheet = spritesheet.Spritesheet(
-        4, 4, filename=image_folder+"Explosion-Green.png")
-    frames = sheet.get_frames()
+        3, 2, filename=image_folder+"fireball-red.png")
+    image_list = sheet.get_frames()
+    sheet.create_angled_image_lists(image_list, 32)
+    radius = 16
 
-class ExplosionBlue(MomentaryEffect):
+class FireballGreen(DirectedSprite):
     sheet = spritesheet.Spritesheet(
-        4, 4, filename=image_folder+"Explosion-Blue.png")
-    frames = sheet.get_frames()
+        3, 2, filename=image_folder+"fireball-green.png")
+    image_list = sheet.get_frames()
+    sheet.create_angled_image_lists(image_list, 32)
+    radius = 16
 
-class Vanish(MomentaryEffect):
+class FireballBlue(DirectedSprite):
     sheet = spritesheet.Spritesheet(
-        4, 4, filename=image_folder+"Effect95.png")
-    frames = sheet.get_frames()
-
-class SparkleBlue(MomentaryEffect):
-    sheet = spritesheet.Spritesheet(
-        35, 1, filename=image_folder+"Sparkle-Blue.png")
-    frames = sheet.get_frames()
-
-class SparkleYellow(MomentaryEffect):
-    sheet = spritesheet.Spritesheet(
-        8, 4, filename=image_folder+"sparkle.png")
-    all_frames = sheet.get_frames()
-    frames = all_frames[0:4] + all_frames[8:12] + \
-        all_frames[16:20] + all_frames[24:28]
-
-class SparkleWhite(MomentaryEffect):
-    sheet = spritesheet.Spritesheet(
-        8, 4, filename=image_folder+"sparkle.png")
-    all_frames = sheet.get_frames()
-    frames = all_frames[4:8] + all_frames[12:16] + \
-        all_frames[20:24] + all_frames[28:32]
+        3, 2, filename=image_folder+"fireball-blue.png")
+    image_list = sheet.get_frames()
+    sheet.create_angled_image_lists(image_list, 32)
+    radius = 16
 
 # Client/Server code
 
@@ -94,7 +107,7 @@ next_id = 0
 # TODO - put complete:incremental or update:complete in response
 def encode_update():
     if len(spritegroup) == 0:
-        return "response:update,module:effects,type:EMPTY\n"
+        return "response:update,module:fireball,type:EMPTY\n"
 
     # Group the sprites by type to reduce the length of the response
     grouped_sprites = {}
@@ -103,6 +116,7 @@ def encode_update():
         sprite_id = sprite.sprite_id
         sprite_type = sprite.typename
         x, y = sprite.get_position()
+        angle = sprite.angle
 
         if sprite_type in grouped_sprites:
             group = grouped_sprites[sprite_type]
@@ -110,19 +124,20 @@ def encode_update():
             group = []
             grouped_sprites[sprite_type] = group
 
-        group.append([sprite_id, x, y])
+        group.append([sprite_id, x, y, angle])
 
     # Build the complete response from the grouped sprites
-    response = "response:update,module:effects\n"
+    response = "response:update,module:fireball\n"
     template_type = "type:{}\n"
-    template_sprite = "id:{},x:{},y:{}\n"
+    template_sprite = "id:{},x:{},y:{},angle:{}\n"
     for name, group in grouped_sprites.items():
         response += template_type.format(name)
         for data in group:
             sprite_id = data[0]
             x = data[1]
             y = data[2]
-            response += template_sprite.format(sprite_id, x, y)
+            angle = data[3]
+            response += template_sprite.format(sprite_id, x, y, angle)
 
     return response
 
@@ -135,13 +150,14 @@ def decode_update(datalines):
             sprite_type = data["type"]
         elif sprite_type is not None:
             sprite_id = int(data["id"])
-            x = int(data["x"])
-            y = int(data["y"])
             id_list.append(sprite_id)
+            x = float(data["x"])
+            y = float(data["y"])
+            angle = float(data["angle"])
 
             sprite = get(sprite_id)
             if sprite is None:
-                add(sprite_type, [x, y], sprite_id)
+                add(sprite_type, [x, y], 500, angle, sprite_id)
             else:
                 sprite.set_position([x, y])
 
@@ -160,6 +176,8 @@ def update():
 
 def update_server():
     update()
+    for sprite in spritegroup:
+        sprite.update_server()
 
 def clear():
     global next_id
@@ -167,7 +185,7 @@ def clear():
     spritegroup.clear()
     next_id = 1
 
-def add(typename, pos, sprite_id=None):
+def add(typename, pos, distance, angle, sprite_id=None):
     global next_id
 
     if sprite_id is None:
@@ -175,14 +193,14 @@ def add(typename, pos, sprite_id=None):
         next_id += 1
 
     sprite = None
-    if typename == "ExplosionRed":
-        sprite = ExplosionRed(pos, sprite_id)
+    if typename == "FireballRed":
+        sprite = FireballRed(pos, distance, angle, sprite_id)
         sprite.typename = typename
-    elif typename == "ExplosionGreen":
-        sprite = ExplosionGreen(pos, sprite_id)
+    elif typename == "FireballGreen":
+        sprite = FireballGreen(pos, distance, angle, sprite_id)
         sprite.typename = typename
-    elif typename == "ExplosionBlue":
-        sprite = ExplosionBlue(pos, sprite_id)
+    elif typename == "FireballBlue":
+        sprite = FireballBlue(pos, distance, angle, sprite_id)
         sprite.typename = typename
 
     if sprite is not None:
