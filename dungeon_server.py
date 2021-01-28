@@ -129,14 +129,6 @@ while game_on:
                     response = "response:added\n".format(x, y)
                     username = logins[socket_thread]
                     print("[{}] Added gem at {},{}".format(username, x, y))
-                elif request_type == "add-fireball":
-                    x = int(data["x"])
-                    y = int(data["y"])
-                    angle = float(data["angle"])
-                    sprite = fireball.add("FireballRed", [x, y], 500, angle)
-                    response = "response:added\n".format(x, y)
-                    username = logins[socket_thread]
-                    print("[{}] Added fireball".format(username))
                 elif request_type == "delete-gem":
                     sprite_id = int(data["id"])
                     if gemstones.remove(sprite_id):
@@ -184,13 +176,5 @@ while game_on:
             position = sprite.get_position()
             effects.add("ExplosionRed", position)
             sprite.kill()
-
-    '''
-    # Randomly place an explosion
-    if random.random() < 0.01:
-        effects.add("ExplosionRed",
-                    [random.randint(0, common.SCREEN_WIDTH),
-                     random.randint(0, common.SCREEN_HEIGHT)])
-    '''
 
     common.clock.tick(common.frames_per_second)

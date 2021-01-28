@@ -81,16 +81,6 @@ class TeleportTargetTile(Tile):
         self.rect.center = position
 
 
-fireball_tower_image = get_tile_image(2, 22, 9)
-
-class FireballTower(Tile):
-
-    def __init__(self, position, sprite_id):
-        super().__init__(sprite_id)
-        self.image = fireball_tower_image
-        self.rect = self.image.get_rect()
-        self.rect.center = position
-
 # Client/Server code
 
 spritegroup = pygame.sprite.Group()
@@ -191,9 +181,6 @@ def add(typename, pos, sprite_id=None):
         sprite.typename = typename
     elif typename == "TeleportTargetTile":
         sprite = TeleportTargetTile(pos, sprite_id)
-        sprite.typename = typename
-    elif typename == "FireballTower":
-        sprite = FireballTower(pos, sprite_id)
         sprite.typename = typename
 
     if sprite is not None:
