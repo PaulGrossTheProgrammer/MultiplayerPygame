@@ -17,7 +17,7 @@ import common
 
 # This ListenerThread creates a SocketThread per Internet Game Client.
 # It listens on the public game Port for new Internet Game CLients.
-# The created SocketThread exists while the Internet Game Client
+# The created SocketThread exists only while the Internet Game Client
 # needs to play the game, and is closed when the player leaves.
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -34,16 +34,16 @@ class GameSocketListenerThread(threading.Thread):
         while True:
             server.listen(1)
             socket, clientAddress = server.accept()
-            # Allocate and start new Thread to communicate with
+            # Allocate and start a new Thread to communicate with
             # the new Internet Game Client.
             GameServerSocketThread(clientAddress, socket).start()
 
 GameSocketListenerThread().start()
 
 
-# This queue is used for THREAD-SAFE, one-way communication
+# This queue is used for THREAD-SAFE, one-way communication.
 # ALL SocketThreads send requests to the GameServer on this shared Queue,
-# but all SocketThreads use their own private queue to recieve the reponse
+# but all SocketThreads use their own private queue to recieve the reponse.
 shared_request_queue = queue.Queue()
 
 
@@ -56,7 +56,7 @@ class GameServerSocketThread(threading.Thread):
         self.clientAddress = clientAddress
 
         # This queue is used for THREAD-SAFE, one-way communication
-        # from the GameServer back to this thread only
+        # from the GameServer back to this thread only.
         self.private_response_queue = queue.Queue()
         print("New socket connection from: {}".format(clientAddress))
 
@@ -94,59 +94,63 @@ logins = {}  # Stores usernames for Client Sockets
 print("Game Running:")
 game_on = True
 while game_on:
-    # Process any available requests from the GameServerSocketThread queue
-    try:
-        # DON'T WAIT on queue, always move on even if the queue is empty
-        socket_thread, request = shared_request_queue.get_nowait()
-    except(queue.Empty):
-        socket_thread = None
-        request = None
+    # Process all available requests from the GameServerSocketThread queue.
+    while shared_request_queue.empty() is not True:
+        try:
+            # DON'T WAIT on queue, always move on even if the queue is empty
+            socket_thread, request = shared_request_queue.get_nowait()
+        except(queue.Empty):
+            socket_thread = None
+            request = None
 
-    if request is not None:
-        response = "response:none"  # Default response
+        if request is not None:
+            response = "response:none"  # Default response
 
-        for line in request.splitlines(False):
-            data = message.decode_dictionary(line)
-            if "request" in data:
-                request_type = data["request"]
-                if request_type == "login":
-                    username = data["username"]
-                    print("logging in user [{}]".format(username))
-                    response = "response:login,username:{}\n".format(username)
-                    logins[socket_thread] = username
-                elif request_type == "update":
-                    # TODO - add other sprite modules
-                    response = gemstones.encode_update()
-                    response += effects.encode_update()
-                    response += monsters.encode_update()
-                    response += fireball.encode_update()
-                    response += dungeontiles.encode_update()
-                elif request_type == "add-gem":
-                    x = int(data["x"])
-                    y = int(data["y"])
-                    gemtype = data["gemtype"]
-                    sprite = gemstones.add(gemtype, [x, y])
-                    response = "response:added\n".format(x, y)
-                    username = logins[socket_thread]
-                    print("[{}] Added gem at {},{}".format(username, x, y))
-                elif request_type == "add-fireball":
-                    x = int(data["x"])
-                    y = int(data["y"])
-                    angle = float(data["angle"])
-                    sprite = fireball.add("FireballRed", [x, y], 500, angle)
-                    response = "response:added\n".format(x, y)
-                    username = logins[socket_thread]
-                    print("[{}] Added fireball".format(username))
-                elif request_type == "delete-gem":
-                    sprite_id = int(data["id"])
-                    if gemstones.remove(sprite_id):
+            for line in request.splitlines(False):
+                data = message.decode_dictionary(line)
+                if "request" in data:
+                    request_type = data["request"]
+                    if request_type == "login":
+                        username = data["username"]
+                        print("logging in user [{}]".format(username))
+                        response = "response:login,username:{}\n".format(
+                            username)
+                        logins[socket_thread] = username
+                    elif request_type == "update":
+                        # TODO - add other sprite modules
+                        response = gemstones.encode_update()
+                        response += effects.encode_update()
+                        response += monsters.encode_update()
+                        response += fireball.encode_update()
+                        response += dungeontiles.encode_update()
+                    elif request_type == "add-gem":
+                        x = int(data["x"])
+                        y = int(data["y"])
+                        gemtype = data["gemtype"]
+                        sprite = gemstones.add(gemtype, [x, y])
+                        response = "response:added\n".format(x, y)
                         username = logins[socket_thread]
-                        print("[{}] deleted id {}".format(username, sprite_id))
-                        response = "response:deleted\n"
-                    else:
-                        response = "response:already_deleted\n"
+                        print("[{}] Added gem at {},{}".format(username, x, y))
+                    elif request_type == "add-fireball":
+                        x = int(data["x"])
+                        y = int(data["y"])
+                        angle = float(data["angle"])
+                        sprite = fireball.add(
+                            "FireballRed", [x, y], 500, angle)
+                        response = "response:added\n".format(x, y)
+                        username = logins[socket_thread]
+                        print("[{}] Added fireball".format(username))
+                    elif request_type == "delete-gem":
+                        sprite_id = int(data["id"])
+                        if gemstones.remove(sprite_id):
+                            username = logins[socket_thread]
+                            print("[{}] deleted id {}".format(
+                                username, sprite_id))
+                            response = "response:deleted\n"
+                        else:
+                            response = "response:already_deleted\n"
 
-        socket_thread.private_response_queue.put(response)
+            socket_thread.private_response_queue.put(response)
 
     # Game logic goes below here...
     gemstones.update_server()
@@ -162,7 +166,7 @@ while game_on:
             monster.stop()
         else:
             closest_gem = None
-            closest_dist2 = None
+            closest_dist2 = None  # Note: compare the distance-squared
             for gem in gemstones.spritegroup:
                 dx = gem.rect.center[0] - monster.rect.center[0]
                 dy = gem.rect.center[1] - monster.rect.center[1]
@@ -174,9 +178,12 @@ while game_on:
             monster.set_player(closest_gem)
 
     # Remove gems when the monster collides
-    pygame.sprite.groupcollide(gemstones.spritegroup, monsters.spritegroup,
-                               True, False,
-                               collided=pygame.sprite.collide_circle)
+    colls = pygame.sprite.groupcollide(gemstones.spritegroup,
+                                       monsters.spritegroup,
+                                       True, False,
+                                       collided=pygame.sprite.collide_circle)
+    for sprite in colls:
+        effects.add("Vanish", sprite.rect.center)
 
     # Explode completed fireballs
     for sprite in fireball.spritegroup:
@@ -184,13 +191,5 @@ while game_on:
             position = sprite.get_position()
             effects.add("ExplosionRed", position)
             sprite.kill()
-
-    '''
-    # Randomly place an explosion
-    if random.random() < 0.01:
-        effects.add("ExplosionRed",
-                    [random.randint(0, common.SCREEN_WIDTH),
-                     random.randint(0, common.SCREEN_HEIGHT)])
-    '''
 
     common.clock.tick(common.frames_per_second)

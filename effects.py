@@ -184,6 +184,18 @@ def add(typename, pos, sprite_id=None):
     elif typename == "ExplosionBlue":
         sprite = ExplosionBlue(pos, sprite_id)
         sprite.typename = typename
+    elif typename == "Vanish":
+        sprite = Vanish(pos, sprite_id)
+        sprite.typename = typename
+    elif typename == "SparkleBlue":
+        sprite = SparkleBlue(pos, sprite_id)
+        sprite.typename = typename
+    elif typename == "SparkleYellow":
+        sprite = SparkleYellow(pos, sprite_id)
+        sprite.typename = typename
+    elif typename == "SparkleWhite":
+        sprite = SparkleWhite(pos, sprite_id)
+        sprite.typename = typename
 
     if sprite is not None:
         spritegroup.add(sprite)
