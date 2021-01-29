@@ -8,9 +8,7 @@ import queue
 import pygame
 
 import gemstones
-import effects
 import monsters
-import fireball
 import dungeontiles
 import message
 import common
@@ -43,7 +41,7 @@ GameSocketListenerThread().start()
 
 # This queue is used for THREAD-SAFE, one-way communication
 # ALL SocketThreads send requests to the GameServer on this shared Queue,
-# but all SocketThreads use their own private queue to recieve the reponse
+# but all SocketThreads use their own private queue to receive the reponse.
 shared_request_queue = queue.Queue()
 
 
@@ -117,9 +115,7 @@ while game_on:
                 elif request_type == "update":
                     # TODO - add other sprite modules
                     response = gemstones.encode_update()
-                    response += effects.encode_update()
                     response += monsters.encode_update()
-                    response += fireball.encode_update()
                     response += dungeontiles.encode_update()
                 elif request_type == "add-gem":
                     x = int(data["x"])
@@ -143,9 +139,7 @@ while game_on:
     # Game logic goes below here...
     gemstones.update_server()
     dungeontiles.update_server()
-    effects.update_server()
     monsters.update_server()
-    fireball.update_server()
 
     # Each monster targets the nearest gem
     for monster in monsters.spritegroup:
@@ -169,12 +163,5 @@ while game_on:
     pygame.sprite.groupcollide(gemstones.spritegroup, monsters.spritegroup,
                                True, False,
                                collided=pygame.sprite.collide_circle)
-
-    # Explode completed fireballs
-    for sprite in fireball.spritegroup:
-        if sprite.done is True:
-            position = sprite.get_position()
-            effects.add("ExplosionRed", position)
-            sprite.kill()
 
     common.clock.tick(common.frames_per_second)

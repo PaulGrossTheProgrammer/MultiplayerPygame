@@ -9,10 +9,8 @@ import pygame
 import common
 import message
 import gemstones
-import effects
 import monsters
 import dungeontiles
-import fireball
 
 # Each queue is used for THREAD-SAFE, one-way communication
 request_queue = queue.Queue()  # GameClientThread -> SocketThread
@@ -166,20 +164,14 @@ while game_on:
             # TODO - process other sprite modules
             if module == "gemstones":
                 gemstones.decode_update(datalines)
-            elif module == "effects":
-                effects.decode_update(datalines)
             elif module == "monsters":
                 monsters.decode_update(datalines)
-            elif module == "fireball":
-                fireball.decode_update(datalines)
             elif module == "dungeontiles":
                 dungeontiles.decode_update(datalines)
 
     # Update sprite animation
     gemstones.update()
-    effects.update()
     monsters.update()
-    fireball.update()
     dungeontiles.update()
     status_group.update()
 
@@ -187,9 +179,7 @@ while game_on:
     screen.fill(common.BLACK)
     gemstones.draw(screen)
     dungeontiles.draw(screen)
-    effects.draw(screen)
     monsters.draw(screen)
-    fireball.draw(screen)
     status_group.draw(screen)
 
     pygame.display.flip()
