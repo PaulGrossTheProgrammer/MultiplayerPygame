@@ -7,13 +7,14 @@ import queue
 
 import pygame
 
+import common
+from clientserver import dict_xy
 import gemstones
 import effects
 import monsters
 import fireball
 import dungeontiles
 import message
-import common
 
 # This ListenerThread creates a SocketThread per Internet Game Client.
 # It listens on the public game Port for new Internet Game CLients.
@@ -78,13 +79,13 @@ class GameServerSocketThread(threading.Thread):
 
 # Game Server
 
-g1 = gemstones.add("GemGreen", [100, 100])
-g2 = gemstones.add("GemRed", [200, 100])
-m1 = monsters.add("GreenZombie", [300, 300])
+g1 = gemstones.shared.add("GemGreen", dict_xy((100, 100)))
+g2 = gemstones.shared.add("GemRed", dict_xy((200, 100)))
+m1 = monsters.shared.add("GreenZombie", dict_xy((300, 300)))
 m1.set_player(g1)
-m2 = monsters.add("GreenZombie", [400, 400])
+m2 = monsters.shared.add("GreenZombie", dict_xy((400, 400)))
 m2.set_player(g2)
-dungeontiles.add("FireballTower", [500, 500])
+dungeontiles.shared.add("FireballTower", dict_xy((500, 500)))
 
 logins = {}  # Stores usernames for Client Sockets
 
@@ -118,31 +119,30 @@ while game_on:
                         logins[socket_thread] = username
                     elif request_type == "update":
                         # TODO - add other sprite modules
-                        response = gemstones.encode_update()
-                        response += effects.encode_update()
-                        response += monsters.encode_update()
-                        response += fireball.encode_update()
-                        response += dungeontiles.encode_update()
+                        response = gemstones.shared.encode_update()
+                        response += effects.shared.encode_update()
+                        response += monsters.shared.encode_update()
+                        response += fireball.shared.encode_update()
+                        response += dungeontiles.shared.encode_update()
                     elif request_type == "add-gem":
                         x = int(data["x"])
                         y = int(data["y"])
                         gemtype = data["gemtype"]
-                        sprite = gemstones.add(gemtype, [x, y])
+                        sprite = gemstones.shared.add(gemtype, dict_xy((x, y)))
                         response = "response:added\n".format(x, y)
                         username = logins[socket_thread]
                         print("[{}] Added gem at {},{}".format(username, x, y))
                     elif request_type == "add-fireball":
-                        x = int(data["x"])
-                        y = int(data["y"])
-                        angle = float(data["angle"])
-                        sprite = fireball.add(
-                            "FireballRed", [x, y], 500, angle)
-                        response = "response:added\n".format(x, y)
+                        # x = int(data["x"])
+                        # y = int(data["y"])
+                        # angle = float(data["angle"])
+                        sprite = fireball.shared.add("FireballRed", data)
+                        response = "response:added fireball\n"
                         username = logins[socket_thread]
                         print("[{}] Added fireball".format(username))
                     elif request_type == "delete-gem":
                         sprite_id = int(data["id"])
-                        if gemstones.remove(sprite_id):
+                        if gemstones.shared.remove(sprite_id):
                             username = logins[socket_thread]
                             print("[{}] deleted id {}".format(
                                 username, sprite_id))
@@ -153,21 +153,21 @@ while game_on:
             socket_thread.private_response_queue.put(response)
 
     # Game logic goes below here...
-    gemstones.update_server()
-    dungeontiles.update_server()
-    effects.update_server()
-    monsters.update_server()
-    fireball.update_server()
+    gemstones.shared.update_server()
+    effects.shared.update_server()
+    monsters.shared.update_server()
+    fireball.shared.update_server()
+    dungeontiles.shared.update_server()
 
     # Each monster targets the nearest gem
-    for monster in monsters.spritegroup:
-        if len(gemstones.spritegroup) == 0:
+    for monster in monsters.shared.spritegroup:
+        if len(gemstones.shared.spritegroup) == 0:
             monster.set_player(None)
             monster.stop()
         else:
             closest_gem = None
             closest_dist2 = None  # Note: compare the distance-squared
-            for gem in gemstones.spritegroup:
+            for gem in gemstones.shared.spritegroup:
                 dx = gem.rect.center[0] - monster.rect.center[0]
                 dy = gem.rect.center[1] - monster.rect.center[1]
                 curr_dist2 = dx * dx + dy * dy
@@ -178,18 +178,20 @@ while game_on:
             monster.set_player(closest_gem)
 
     # Remove gems when the monster collides
-    colls = pygame.sprite.groupcollide(gemstones.spritegroup,
-                                       monsters.spritegroup,
+    colls = pygame.sprite.groupcollide(gemstones.shared.spritegroup,
+                                       monsters.shared.spritegroup,
                                        True, False,
                                        collided=pygame.sprite.collide_circle)
     for sprite in colls:
-        effects.add("Vanish", sprite.rect.center)
+        # data = {"x": sprite.rect.center[0], "y": sprite.rect.center[1]}
+        data = dict_xy(sprite.rect.center)
+        new_effect = effects.shared.add("Vanish", data)
 
     # Explode completed fireballs
-    for sprite in fireball.spritegroup:
+    for sprite in fireball.shared.spritegroup:
         if sprite.done is True:
-            position = sprite.get_position()
-            effects.add("ExplosionRed", position)
+            data = dict_xy(sprite.get_position())
+            effects.shared.add("ExplosionRed", data)
             sprite.kill()
 
     common.clock.tick(common.frames_per_second)

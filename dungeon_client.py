@@ -4,7 +4,6 @@ import threading
 import queue
 import socket
 import math
-# import random
 
 import pygame
 
@@ -110,8 +109,8 @@ while game_on:
                 curr_gemtype = "GemDiamond"
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             # Was a gem clicked?
-            clicked_gem = gemstones.collide_point_first(event.pos)
-            tower = dungeontiles.collide_point_first_type(
+            clicked_gem = gemstones.shared.collide_sprite(event.pos)
+            tower = dungeontiles.shared.collide_sprite_type(
                 event.pos, "FireballTower")
 
             if clicked_gem is not None:
@@ -126,13 +125,6 @@ while game_on:
                 new_request = template.format(
                     curr_gemtype, event.pos[0], event.pos[1])
                 print(new_request)
-                '''
-                angle = 2 * math.pi * random.random()
-                template = "request:add-fireball,x:{},y:{},angle:{}\n"
-                new_request = template.format(
-                    event.pos[0], event.pos[1], angle)
-                print(new_request)
-                '''
                 new_requests.append(new_request)
         if (event.type == pygame.MOUSEBUTTONUP and
                 event.button == 1 and
@@ -147,7 +139,7 @@ while game_on:
             print(new_request)
             new_requests.append(new_request)
 
-    # If we are not wait for an update, and there are
+    # If we are not waiting for an update, and there are
     # no other requests, request an update
     if wait_for_update is False and len(new_requests) == 0:
         new_requests.append("request:update\n")
@@ -179,7 +171,10 @@ while game_on:
                 if response_type == "update":
                     sprite_update = True
                     wait_for_update = False
-                    module = data["module"]
+                    if "module" in data:  # Hack for new class
+                        module = data["module"]
+                    else:
+                        module = data["group"]
                     module_group = []
                     module_updates[module] = module_group
                 else:
@@ -191,31 +186,32 @@ while game_on:
         for module, datalines in module_updates.items():
             # TODO - process other sprite modules
             if module == "gemstones":
-                gemstones.decode_update(datalines)
+                gemstones.shared.decode_update(datalines)
             elif module == "effects":
-                effects.decode_update(datalines)
+                effects.shared.decode_update(datalines)
             elif module == "monsters":
-                monsters.decode_update(datalines)
+                monsters.shared.decode_update(datalines)
             elif module == "fireball":
-                fireball.decode_update(datalines)
+                fireball.shared.decode_update(datalines)
             elif module == "dungeontiles":
-                dungeontiles.decode_update(datalines)
+                dungeontiles.shared.decode_update(datalines)
 
     # Update sprite animation
-    gemstones.update()
-    effects.update()
-    monsters.update()
-    fireball.update()
-    dungeontiles.update()
+    gemstones.shared.update()
+    effects.shared.update()
+    monsters.shared.update()
+    fireball.shared.update()
+    dungeontiles.shared.update()
     status_group.update()
 
     # Draw game screen
     screen.fill(common.BLACK)
-    gemstones.draw(screen)
-    dungeontiles.draw(screen)
-    effects.draw(screen)
-    monsters.draw(screen)
-    fireball.draw(screen)
+
+    gemstones.shared.draw(screen)
+    effects.shared.draw(screen)
+    dungeontiles.shared.draw(screen)
+    monsters.shared.draw(screen)
+    fireball.shared.draw(screen)
     status_group.draw(screen)
 
     if fireball_start is not None:
