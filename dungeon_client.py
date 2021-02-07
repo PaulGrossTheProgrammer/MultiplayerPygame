@@ -110,6 +110,7 @@ while game_on:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             # Was a gem clicked?
             clicked_gem = gemstones.shared.collide_sprite(event.pos)
+            clicked_monster = monsters.shared.collide_sprite(event.pos)
             tower = dungeontiles.shared.collide_sprite_type(
                 event.pos, "FireballTower")
 
@@ -120,24 +121,28 @@ while game_on:
                 new_requests.append(new_request)
             elif tower is not None:
                 fireball_start = tower.rect.center
+            elif clicked_monster is not None:
+                template = "request:bump-monster,id:{}\n"
+                new_request = template.format(clicked_monster.sprite_id)
+                print(new_request)
+                new_requests.append(new_request)
             else:
                 template = "request:add-gem,gemtype:{},x:{},y:{}\n"
                 new_request = template.format(
                     curr_gemtype, event.pos[0], event.pos[1])
                 print(new_request)
                 new_requests.append(new_request)
-        if (event.type == pygame.MOUSEBUTTONUP and
-                event.button == 1 and
-                fireball_start is not None):
-            dx = event.pos[0] - fireball_start[0]
-            dy = event.pos[1] - fireball_start[1]
-            angle = math.atan2(dy, dx)
-            template = "request:add-fireball,x:{},y:{},angle:{}\n"
-            new_request = template.format(
-                fireball_start[0], fireball_start[1], angle)
-            fireball_start = None
-            print(new_request)
-            new_requests.append(new_request)
+        if (event.type == pygame.MOUSEBUTTONUP and event.button == 1):
+            if fireball_start is not None:
+                dx = event.pos[0] - fireball_start[0]
+                dy = event.pos[1] - fireball_start[1]
+                angle = math.atan2(dy, dx)
+                template = "request:add-fireball,x:{},y:{},angle:{}\n"
+                new_request = template.format(
+                    fireball_start[0], fireball_start[1], angle)
+                fireball_start = None
+                print(new_request)
+                new_requests.append(new_request)
 
     # If we are not waiting for an update, and there are
     # no other requests, request an update

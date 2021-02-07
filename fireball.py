@@ -89,7 +89,6 @@ class DirectedSprite(pygame.sprite.Sprite):
 
     def set_data(self, data: dict):
         """Needed by DistributedSpriteGroup.decode_update()"""
-        print(data)
 
         self.position_x = float(data["x"])
         self.position_y = float(data["y"])

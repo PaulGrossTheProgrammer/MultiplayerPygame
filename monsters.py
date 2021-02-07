@@ -7,7 +7,32 @@ import pygame
 import spritesheet
 import common
 import clientserver
-from common import image_folder
+from common import image_folder, RED, GREEN
+
+class HealthBar(pygame.sprite.Sprite):
+    width = 30
+    height = 6
+
+    def __init__(self, monster):
+        super().__init__()
+
+        self.image = pygame.Surface([self.width, self.height])
+        self.rect = self.image.get_rect()
+
+        self.monster = monster
+
+    def update(self):
+        # Draw the bar
+        self.image.fill(GREEN)
+        if self.monster.get_health_ratio() < 1.0:
+            damage_length = self.width * (1 - self.monster.get_health_ratio())
+            damage_bar = pygame.Surface([damage_length, self.height])
+            damage_bar.fill(RED)
+            self.image.blit(damage_bar, [self.width - damage_length, 0])
+
+        # Follow the monster around, slighty below the center
+        x, y = self.monster.rect.center
+        self.rect.center = [x, y+20]
 
 class Monster(pygame.sprite.Sprite):
 
@@ -15,6 +40,7 @@ class Monster(pygame.sprite.Sprite):
     radius = 20
     speed = 1.0
     frame_change_trigger = 18
+    current_health = 0
 
     monster_attacks = ("DIRECT", "XAXIS", "YAXIS")
 
@@ -23,6 +49,10 @@ class Monster(pygame.sprite.Sprite):
 
         self.image = self.frames[0]
         self.rect = self.image.get_rect()
+
+        self.current_health = self.start_health
+        self.dead = False
+        self.healthbar = None
 
         self.speed *= 60.0/common.frames_per_second
 
@@ -103,6 +133,15 @@ class Monster(pygame.sprite.Sprite):
         self.position_y += dy
         self.rect.center = [int(self.position_x), int(self.position_y)]
 
+    def hit(self, damage):
+        self.current_health -= damage
+        if self.current_health <= 0:
+            self.current_health = 0
+            self.dead = True
+
+    def get_health_ratio(self):
+        return self.current_health/self.start_health
+
     def get_data(self) -> dict:
         """Needed by DistributedSpriteGroup.encode_update()"""
 
@@ -132,6 +171,8 @@ class PurplePeopleEater(Monster):
     radius = 20
     speed = 1.3
 
+    start_health = 20
+
 class GreenZombie(Monster):
     sheet = spritesheet.Spritesheet(
         3, 1, filename=image_folder+"Zombie.png")
@@ -139,6 +180,8 @@ class GreenZombie(Monster):
 
     radius = 12
     speed = 0.5
+
+    start_health = 15
 
 class BlueGhost(Monster):
     sheet = spritesheet.Spritesheet(
@@ -149,11 +192,8 @@ class BlueGhost(Monster):
     speed = 1.8
     frame_change_trigger = 3
 
+    start_health = 5
 
-random_list = [PurplePeopleEater, GreenZombie, BlueGhost]
-
-def random_monster(position):
-    return random.choice(random_list)(position)
 
 # Client/Server code
 
