@@ -145,6 +145,8 @@ while game_on:
                             print("Bumping monster: " + str(monster))
                             angle = random.random() * 2 * math.pi
                             bump_sprite(monster, angle, 10)
+                            effects.shared.add("BloodHit").rect.center = \
+                                monster.rect.center
                         response = "response:bumped\n"
                     elif request_type == "add-gem":
                         x = int(data["x"])
@@ -205,8 +207,8 @@ while game_on:
                     if closest_dist2 is None or curr_dist2 < closest_dist2:
                         closest_dist2 = curr_dist2
                         closest_gem = gem
-            if closest_gem is not None:
-                monster.set_player(closest_gem)
+                if closest_gem is not None:
+                    monster.set_player(closest_gem)
 
     # Gem and monster collisions
     colls = pygame.sprite.groupcollide(gemstones.shared.spritegroup,
@@ -228,11 +230,13 @@ while game_on:
         for monster in colls[fb]:
             monster.hit(5)
             bump_sprite(monster, fb.angle, 10)
+            effects.shared.add("BloodHit").rect.center = monster.rect.center
 
     # Remove dead monsters
     for monster in monsters.shared.spritegroup:
         if monster.dead is True:
             monster.kill()
+            effects.shared.add("BloodKill").rect.center = monster.rect.center
 
     # Explode completed fireballs
     for fb in fireball.shared.spritegroup:

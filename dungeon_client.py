@@ -213,10 +213,10 @@ while game_on:
     screen.fill(common.BLACK)
 
     gemstones.shared.draw(screen)
-    effects.shared.draw(screen)
     dungeontiles.shared.draw(screen)
     monsters.shared.draw(screen)
     fireball.shared.draw(screen)
+    effects.shared.draw(screen)
     status_group.draw(screen)
 
     if fireball_start is not None:

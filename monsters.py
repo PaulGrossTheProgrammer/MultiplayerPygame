@@ -155,12 +155,16 @@ class Monster(pygame.sprite.Sprite):
     def set_data(self, data: dict):
         """Needed by DistributedSpriteGroup.decode_update()"""
 
-        self.position_x = float(data["x"])
-        self.position_y = float(data["y"])
+        x = float(data.get("x", "0.0"))
+        y = float(data.get("y", "0.0"))
+        dx = float(data.get("dx", "0.0"))
+        dy = float(data.get("dy", "0.0"))
+
+        self.position_x = x
+        self.position_y = y
         self.rect.center = (int(self.position_x), int(self.position_y))
-        if "dx" in data and "dy" in data:
-            self.delta_x = float(data["dx"])
-            self.delta_y = float(data["dy"])
+        self.delta_x = dx
+        self.delta_y = dy
 
 
 class PurplePeopleEater(Monster):

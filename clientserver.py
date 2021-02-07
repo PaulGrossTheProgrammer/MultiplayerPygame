@@ -138,10 +138,13 @@ class SharedSpriteGroup():
         self.spritegroup.clear()
         self.next_id = 1
 
-    def add(self, typename, data, sprite_id=None):
+    def add(self, typename, data=None, sprite_id=None):
         if sprite_id is None:
             sprite_id = self.next_id
             self.next_id += 1
+
+        if data is None:
+            data = {}
 
         # TODO - handle incorrect typenames
         constructor = self.class_dict[typename]

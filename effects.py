@@ -15,6 +15,8 @@ class MomentaryEffect(pygame.sprite.Sprite):
     in a variable called frames.
     """
 
+    frame_change_trigger = int(common.frames_per_second / 20)
+
     def __init__(self):
         super().__init__()
 
@@ -24,7 +26,6 @@ class MomentaryEffect(pygame.sprite.Sprite):
 
         # Animation
         self.frame_curr = 0
-        self.frame_change_trigger = int(common.frames_per_second / 20)
         self.frame_change_counter = 0
 
     def update(self):
@@ -45,8 +46,9 @@ class MomentaryEffect(pygame.sprite.Sprite):
         return data
 
     def set_data(self, data: dict):
-        pos = [int(data["x"]), int(data["y"])]
-        self.rect.center = pos
+        x = int(data.get("x", "0"))
+        y = int(data.get("y", "0"))
+        self.rect.center = (x, y)
 
     def set_position(self, position: tuple):
         self.rect.center = position
@@ -97,9 +99,21 @@ class SparkleWhite(MomentaryEffect):
     frames = all_frames[4:8] + all_frames[12:16] + \
         all_frames[20:24] + all_frames[28:32]
 
+class BloodHit(MomentaryEffect):
+    sheet = spritesheet.Spritesheet(
+        4, 4, filename=image_folder+"BloodHit-1-small.png")
+    frames = sheet.get_frames()
+    frame_change_trigger = 2
+
+class BloodKill(MomentaryEffect):
+    sheet = spritesheet.Spritesheet(
+        15, 1, filename=image_folder+"bloodsplat3_strip15-small.png")
+    frames = sheet.get_frames()
+    frame_change_trigger = 2
 
 # Client/Server code
 
 class_list = (ExplosionRed, ExplosionGreen, ExplosionBlue, Vanish,
-              SparkleBlue, SparkleYellow, SparkleWhite)
+              SparkleBlue, SparkleYellow, SparkleWhite,
+              BloodHit, BloodKill)
 shared = clientserver.SharedSpriteGroup("effects", class_list)
