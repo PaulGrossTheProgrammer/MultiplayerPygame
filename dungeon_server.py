@@ -92,7 +92,11 @@ m1 = monsters.shared.add("GreenZombie", dict_xy((300, 300)))
 m1.set_player(g1)
 m2 = monsters.shared.add("GreenZombie", dict_xy((400, 400)))
 m2.set_player(g2)
-dungeontiles.shared.add("FireballTower", dict_xy((500, 500)))
+
+dungeontiles.shared.add("FireballTower", dict_xy((50, 50)))
+dungeontiles.shared.add("FireballTower", dict_xy((750, 50)))
+dungeontiles.shared.add("FireballTower", dict_xy((50, 550)))
+dungeontiles.shared.add("FireballTower", dict_xy((750, 550)))
 
 monster_retarget_trigger = common.frames_per_second / 2
 monster_retarget_counter = 0
@@ -236,5 +240,10 @@ while game_on:
             data = dict_xy(fb.get_position())
             effects.shared.add("ExplosionRed", data)
             fb.kill()
+
+    # Replace dead monsters
+    if len(monsters.shared.spritegroup) < 2:
+        monsters.shared.add("GreenZombie", dict_xy((
+            common.SCREEN_WIDTH/2, common.SCREEN_HEIGHT/2)))
 
     common.clock.tick(common.frames_per_second)
