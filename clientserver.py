@@ -1,5 +1,7 @@
 # Client/Server code to support distributed sprites
 
+import random
+
 import pygame
 
 
@@ -40,7 +42,7 @@ class SharedSpriteGroup():
 
     def encode_update(self):
         """Called by the Server to create an update string
-        containing the data needed for each sprite.
+        containing the data needed all sprites in the spritegroup.
 
         Note: Calls get_data() for each sprite.
         """
@@ -123,8 +125,9 @@ class SharedSpriteGroup():
         self.spritegroup.update()
 
     def update_server(self):
-        """Any sprite with an update_server() method will call that method,
-        otherwise, the sprite's update() method is called instead.
+        """Any sprite in the spritegroup with an update_server() method
+        will call that method, otherwise, the sprite's update() method
+        is called instead.
         """
 
         for sprite in self.spritegroup:
@@ -174,7 +177,7 @@ class SharedSpriteGroup():
                 return True
         return False
 
-    def has_id(self, sprite_id):
+    def has_id(self, sprite_id) -> bool:
         for sprite in self.spritegroup:
             curr_sprite_id = getattr(sprite, "sprite_id")
             if curr_sprite_id == sprite_id:
@@ -207,9 +210,14 @@ class SharedSpriteGroup():
             return None
         return sprites[0]
 
+    def random_typename(self) -> str:
+        """ Returns a random type from the class list as a string """
 
-def dict_xy(position):
-    """Convenient method to turn a position tuple into dictionary values.
+        return random.choice(list(self.class_dict.keys()))
+
+
+def dict_xy(position) -> dict:
+    """Convenient method to turn a position list or tuple into dict values.
 
     Values take the form x:? and y:?.
     """

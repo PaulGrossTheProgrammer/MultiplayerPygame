@@ -52,8 +52,9 @@ class Gemstone(pygame.sprite.Sprite):
         return data
 
     def set_data(self, data: dict):
-        pos = [int(data["x"]), int(data["y"])]
-        self.rect.center = pos
+        x = int(data.get("x", "0"))
+        y = int(data.get("y", "0"))
+        self.rect.center = (x, y)
 
 
 class GemDiamond(Gemstone):

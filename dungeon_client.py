@@ -9,6 +9,7 @@ import pygame
 
 import common
 import message
+import soundeffects
 import gemstones
 import effects
 import monsters
@@ -184,12 +185,14 @@ while game_on:
                     module_updates[module] = module_group
                 else:
                     sprite_update = False
+                if response_type == "soundeffects":
+                    print(data)
+                    soundeffects.decode_effects(data)
 
             elif sprite_update is True:
                 module_group.append(data)
 
         for module, datalines in module_updates.items():
-            # TODO - process other sprite modules
             if module == "gemstones":
                 gemstones.shared.decode_update(datalines)
             elif module == "effects":
