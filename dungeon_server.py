@@ -105,6 +105,9 @@ logins = {}  # Stores usernames for Client Sockets
 print("Game Running:")
 game_on = True
 while game_on:
+    #
+    # REQUEST-RESPONSE HANDLING:
+    #
     # Process all available requests from the GameServerSocketThread queue.
     while shared_request_queue.empty() is not True:
         try:
@@ -143,8 +146,8 @@ while game_on:
                             angle = random.random() * 2 * math.pi
                             bump_sprite(monster, angle, 10)
                             monster.hit(1)
-                            effects.shared.add("BloodHit").rect.center = \
-                                monster.rect.center
+                            effects.shared.add("BloodHit").set_position(
+                                monster.rect.center)
                         response = "response:bumped\n"
                     elif request_type == "add-gem":
                         x = int(data["x"])
@@ -181,7 +184,9 @@ while game_on:
 
             socket_thread.private_response_queue.put(response)
 
-    # Game logic goes below here...
+    #
+    # GAME LOGIC:
+    #
     gemstones.shared.update_server()
     effects.shared.update_server()
     monsters.shared.update_server()

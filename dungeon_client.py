@@ -92,8 +92,13 @@ fireball_start = None
 wait_for_update = False
 new_requests = []
 game_on = True
-while game_on:
-    # Check for mouse and keyboard events
+# while game_on:
+# while game_on is True:
+while game_on is not False:
+    #
+    # EVENT HANDLING:
+    #
+    # Process any mouse and keyboard evets
     events = pygame.event.get()
     for event in events:
         if event.type == pygame.QUIT:
@@ -109,10 +114,9 @@ while game_on:
             if event.key == pygame.K_d:
                 curr_gemtype = "GemDiamond"
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            # Was a gem clicked?
             clicked_gem = gemstones.shared.collide_sprite(event.pos)
             clicked_monster = monsters.shared.collide_sprite(event.pos)
-            tower = dungeontiles.shared.collide_sprite_type(
+            clicked_tower = dungeontiles.shared.collide_sprite_type(
                 event.pos, "FireballTower")
 
             if clicked_gem is not None:
@@ -120,13 +124,13 @@ while game_on:
                 new_request = template.format(clicked_gem.sprite_id)
                 print(new_request)
                 new_requests.append(new_request)
-            elif tower is not None:
-                fireball_start = tower.rect.center
             elif clicked_monster is not None:
                 template = "request:bump-monster,id:{}\n"
                 new_request = template.format(clicked_monster.sprite_id)
                 print(new_request)
                 new_requests.append(new_request)
+            elif clicked_tower is not None:
+                fireball_start = clicked_tower.rect.center
             else:
                 template = "request:add-gem,gemtype:{},x:{},y:{}\n"
                 new_request = template.format(
@@ -145,6 +149,9 @@ while game_on:
                 print(new_request)
                 new_requests.append(new_request)
 
+    #
+    # REQUEST HANDLING:
+    #
     # If we are not waiting for an update, and there are
     # no other requests, request an update
     if wait_for_update is False and len(new_requests) == 0:
@@ -156,6 +163,9 @@ while game_on:
         request_queue.put(request)
     new_requests.clear()
 
+    #
+    # RESPONSE HANDLING:
+    #
     # Process any available responses from the ClientSocketThread queue
     try:
         # DON'T WAIT on queue, always move on even if the queue is empty
@@ -204,6 +214,9 @@ while game_on:
             elif module == "dungeontiles":
                 dungeontiles.shared.decode_update(datalines)
 
+    #
+    # ANIMATION HANDLING:
+    #
     # Update sprite animation
     gemstones.shared.update()
     effects.shared.update()
@@ -223,8 +236,8 @@ while game_on:
     status_group.draw(screen)
 
     if fireball_start is not None:
-        pygame.draw.line(screen, common.RED,
-                         fireball_start, pygame.mouse.get_pos(), 2)
+        pygame.draw.line(screen, common.RED, fireball_start,
+                         pygame.mouse.get_pos(), 2)
 
     pygame.display.flip()
 

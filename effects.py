@@ -111,6 +111,7 @@ class BloodKill(MomentaryEffect):
     frames = sheet.get_frames()
     frame_change_trigger = 2
 
+
 # Client/Server code
 
 class_list = (ExplosionRed, ExplosionGreen, ExplosionBlue, Vanish,
