@@ -36,7 +36,7 @@ class HealthBar(pygame.sprite.Sprite):
 
 class Monster(pygame.sprite.Sprite):
 
-    player = None  # Set this so that the monster can react to the player
+    target = None  # Set this so that the monster can react to a target
     radius = 20
     speed = 1.0
     frame_change_trigger = 18
@@ -89,14 +89,14 @@ class Monster(pygame.sprite.Sprite):
         self.update()
 
         # If the player is set, attack the player
-        if self.player is not None:
+        if self.target is not None:
             # Periodically trigger decisions
             self.decision_counter += 1
             if self.decision_counter >= self.decision_trigger:
                 self.decision_counter = 0
                 # ---MONSTER ARTIFICAL INTELLIGENCE ---
-                dx = self.player.rect.center[0] - self.rect.center[0]
-                dy = self.player.rect.center[1] - self.rect.center[1]
+                dx = self.target.rect.center[0] - self.rect.center[0]
+                dy = self.target.rect.center[1] - self.rect.center[1]
                 action = random.choice(self.monster_attacks)
                 if action == "DIRECT":
                     angle = math.atan2(dy, dx)
@@ -113,8 +113,8 @@ class Monster(pygame.sprite.Sprite):
                     if dy < 0:
                         self.delta_y = -self.delta_y
 
-    def set_player(self, player):
-        self.player = player
+    def set_target(self, target):
+        self.target = target
 
     def stop(self):
         self.delta_x = 0

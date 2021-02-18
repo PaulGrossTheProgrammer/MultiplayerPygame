@@ -85,8 +85,39 @@ status_group = pygame.sprite.Group()
 status_sprite = StatusLine([150, 20])
 status_group.add(status_sprite)
 
+towerselected_group = pygame.sprite.Group()
 
 # Game Client Window - Main Thread
+
+def draw_line(screen, start, end, color, thickness):
+    pygame.draw.line(screen, color, start, end, thickness)
+
+def draw_arrow(screen, start, end, color, thickness):
+    pygame.draw.line(screen, color, start, end, thickness)
+
+    # calculate angle
+    dx = end[0] - start[0]
+    dy = end[1] - start[1]
+    angle = math.atan2(dy, dx)
+
+    head_length = 15
+    head_angle = math.pi/6
+
+    # Draw first head line
+    angle1 = angle + head_angle
+    dx1 = math.cos(angle1) * head_length
+    dy1 = math.sin(angle1) * head_length
+    end1 = (int(end[0] - dx1), int(end[1] - dy1))
+    pygame.draw.line(screen, color, end, end1, thickness)
+
+    # Draw second head line
+    angle2 = angle - head_angle
+    dx2 = math.cos(angle2) * head_length
+    dy2 = math.sin(angle2) * head_length
+    end2 = (int(end[0] - dx2), int(end[1] - dy2))
+    pygame.draw.line(screen, color, end, end2, thickness)
+
+
 curr_gemtype = "GemGreen"
 fireball_start = None
 wait_for_update = False
@@ -131,6 +162,9 @@ while game_on is not False:
                 new_requests.append(new_request)
             elif clicked_tower is not None:
                 fireball_start = clicked_tower.rect.center
+                effect = effects.FireCircle()
+                effect.set_position(clicked_tower.rect.center)
+                towerselected_group.add(effect)
             else:
                 template = "request:add-gem,gemtype:{},x:{},y:{}\n"
                 new_request = template.format(
@@ -145,6 +179,8 @@ while game_on is not False:
                 template = "request:add-fireball,x:{},y:{},angle:{}\n"
                 new_request = template.format(
                     fireball_start[0], fireball_start[1], angle)
+
+                towerselected_group.empty()
                 fireball_start = None
                 print(new_request)
                 new_requests.append(new_request)
@@ -166,6 +202,7 @@ while game_on is not False:
     #
     # RESPONSE HANDLING:
     #
+
     # Process any available responses from the ClientSocketThread queue
     try:
         # DON'T WAIT on queue, always move on even if the queue is empty
@@ -217,6 +254,7 @@ while game_on is not False:
     #
     # ANIMATION HANDLING:
     #
+
     # Update sprite animation
     gemstones.shared.update()
     effects.shared.update()
@@ -224,6 +262,7 @@ while game_on is not False:
     fireball.shared.update()
     dungeontiles.shared.update()
     status_group.update()
+    towerselected_group.update()
 
     # Draw game screen
     screen.fill(common.BLACK)
@@ -233,11 +272,20 @@ while game_on is not False:
     monsters.shared.draw(screen)
     fireball.shared.draw(screen)
     effects.shared.draw(screen)
+    towerselected_group.draw(screen)
     status_group.draw(screen)
 
     if fireball_start is not None:
+        '''
         pygame.draw.line(screen, common.RED, fireball_start,
                          pygame.mouse.get_pos(), 2)
+        draw_line(screen, fireball_start, pygame.mouse.get_pos(),
+                  common.RED, 8)
+        draw_line(screen, fireball_start, pygame.mouse.get_pos(),
+                  common.BLACK, 4)
+        '''
+        draw_arrow(screen, fireball_start, pygame.mouse.get_pos(),
+                   common.RED, 6)
 
     pygame.display.flip()
 

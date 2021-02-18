@@ -8,10 +8,13 @@ import common
 import clientserver
 
 
-class MomentaryEffect(pygame.sprite.Sprite):
-    """Parent Class for animated sprites that play through only once.
+class Effect(pygame.sprite.Sprite):
+    """Parent Class for animated effect sprites
+    that play a sequence of images.
 
-    Each subclass needs to create a lost of images to play though
+    NOTE: Subclass either ContinuousEffect or MomentaryEffect.
+
+    Each subclass needs to create a list of images to play though
     in a variable called frames.
     """
 
@@ -27,17 +30,6 @@ class MomentaryEffect(pygame.sprite.Sprite):
         # Animation
         self.frame_curr = 0
         self.frame_change_counter = 0
-
-    def update(self):
-        self.frame_change_counter += 1
-        if self.frame_change_counter >= self.frame_change_trigger:
-            self.frame_change_counter = 0
-            self.frame_curr += 1  # Change frame
-            if self.frame_curr < len(self.frames):
-                self.image = self.frames[self.frame_curr]
-            else:
-                self.done = True
-                self.kill()
 
     def get_data(self) -> dict:
         data = {}
@@ -59,6 +51,48 @@ class MomentaryEffect(pygame.sprite.Sprite):
     def scroll_position(self, dx, dy):
         self.rect.x += dx
         self.rect.y += dy
+
+class ContinuousEffect(Effect):
+    """Parent Class for animated sprites that replay continually.
+
+    Each subclass needs to create a list of images to play though
+    in a variable called frames.
+    """
+
+    def update(self):
+        self.frame_change_counter += 1
+        if self.frame_change_counter >= self.frame_change_trigger:
+            self.frame_change_counter = 0
+            self.frame_curr += 1  # Change frame
+            if self.frame_curr >= len(self.frames):
+                self.frame_curr = 0
+            self.image = self.frames[self.frame_curr]
+
+
+class MomentaryEffect(Effect):
+    """Parent Class for animated sprites that play through only once.
+
+    Each subclass needs to create a list of images to play though
+    in a variable called frames.
+    """
+
+    def update(self):
+        self.frame_change_counter += 1
+        if self.frame_change_counter >= self.frame_change_trigger:
+            self.frame_change_counter = 0
+            self.frame_curr += 1  # Change frame
+            if self.frame_curr < len(self.frames):
+                self.image = self.frames[self.frame_curr]
+            else:
+                self.done = True
+                self.kill()
+
+
+class FireCircle(ContinuousEffect):
+    sheet = spritesheet.Spritesheet(
+        8, 8, filename=image_folder+"FireCircle.png", scale=1.5)
+    frames = sheet.get_frames()
+    frames = frames[:31]
 
 class ExplosionRed(MomentaryEffect):
     sheet = spritesheet.Spritesheet(
@@ -114,7 +148,7 @@ class BloodKill(MomentaryEffect):
 
 # Client/Server code
 
-class_list = (ExplosionRed, ExplosionGreen, ExplosionBlue, Vanish,
+class_list = (FireCircle, ExplosionRed, ExplosionGreen, ExplosionBlue, Vanish,
               SparkleBlue, SparkleYellow, SparkleWhite,
               BloodHit, BloodKill)
 shared = clientserver.SharedSpriteGroup("effects", class_list)

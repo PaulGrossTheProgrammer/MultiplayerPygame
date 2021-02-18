@@ -97,7 +97,7 @@ dungeontiles.shared.add("FireballTower").set_position((750, 550))
 monster_retarget_trigger = common.frames_per_second / 2
 monster_retarget_counter = 0
 
-logins = {}  # Stores usernames for Client Sockets
+socket_logins = {}  # Stores usernames for Client Sockets
 
 # This is the main thread.
 # Inside the while loop the code never waits for anything,
@@ -108,6 +108,7 @@ while game_on:
     #
     # REQUEST-RESPONSE HANDLING:
     #
+
     # Process all available requests from the GameServerSocketThread queue.
     while shared_request_queue.empty() is not True:
         try:
@@ -129,7 +130,7 @@ while game_on:
                         print("logging in user [{}]".format(username))
                         response = "response:login,username:{}\n".format(
                             username)
-                        logins[socket_thread] = username
+                        socket_logins[socket_thread] = username
                     elif request_type == "update":
                         response = gemstones.shared.encode_update()
                         response += effects.shared.encode_update()
@@ -156,17 +157,17 @@ while game_on:
                         sprite = gemstones.shared.add(gemtype)
                         sprite.set_position((x, y))
                         response = "response:added-gem\n".format(x, y)
-                        username = logins[socket_thread]
+                        username = socket_logins[socket_thread]
                         print("[{}] Added gem at {},{}".format(username, x, y))
                     elif request_type == "add-fireball":
                         sprite = fireball.shared.add("FireballRed", data)
                         response = "response:added-fireball\n"
-                        username = logins[socket_thread]
+                        username = socket_logins[socket_thread]
                         print("[{}] Added fireball".format(username))
                     elif request_type == "delete-gem":
                         sprite_id = int(data["id"])
                         if gemstones.shared.remove(sprite_id):
-                            username = logins[socket_thread]
+                            username = socket_logins[socket_thread]
                             print("[{}] deleted id {}".format(
                                 username, sprite_id))
                             response = "response:deleted-gem\n"
@@ -176,8 +177,8 @@ while game_on:
             if response is None:
                 response = "response:unknown-request"  # Default response
 
-                if socket_thread in logins:
-                    username = logins[socket_thread]
+                if socket_thread in socket_logins:
+                    username = socket_logins[socket_thread]
                     print("Request error from user: [{}]".format(username))
                 print(request)
                 print(response)
@@ -187,6 +188,7 @@ while game_on:
     #
     # GAME LOGIC:
     #
+
     gemstones.shared.update_server()
     effects.shared.update_server()
     monsters.shared.update_server()
@@ -199,7 +201,7 @@ while game_on:
         monster_retarget_counter = 0
         for monster in monsters.shared.spritegroup:
             if len(gemstones.shared.spritegroup) == 0:  # No gems
-                monster.set_player(None)
+                monster.set_target(None)
                 monster.stop()
             else:  # Target nearest gem
                 closest_gem = None
@@ -212,7 +214,7 @@ while game_on:
                         closest_dist2 = curr_dist2
                         closest_gem = gem
                 if closest_gem is not None:
-                    monster.set_player(closest_gem)
+                    monster.set_target(closest_gem)
 
     # Gem and monster collisions
     coll_gem_monster = pygame.sprite.groupcollide(
