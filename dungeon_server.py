@@ -220,8 +220,8 @@ while game_on:
     coll_gem_monster = pygame.sprite.groupcollide(
         gemstones.shared.spritegroup, monsters.shared.spritegroup,
         True, False, collided=pygame.sprite.collide_circle)
-    for sprite in coll_gem_monster:
-        effects.shared.add("Vanish").set_position(sprite.rect.center)
+    for gem in coll_gem_monster:
+        effects.shared.add("Vanish").set_position(gem.rect.center)
 
     # Fireball and monster collisions
     coll_fb_monster = pygame.sprite.groupcollide(
