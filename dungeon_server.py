@@ -25,13 +25,18 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind(('', common.server_port))
 
+
+hostname = socket.gethostname()
+local_ip = socket.gethostbyname(hostname)
+
 class GameSocketListenerThread(threading.Thread):
 
     def __init__(self):
         threading.Thread.__init__(self)
 
     def run(self):
-        print("Internet Socket Server started:")
+        print("Internet Socket Server started on: [{}]".format(hostname))
+        print("LOCAL IP address = {}".format(local_ip))
         print("Waiting for clients on port {}...".format(common.server_port))
         while True:
             server.listen(1)
