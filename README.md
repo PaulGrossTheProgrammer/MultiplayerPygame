@@ -12,9 +12,11 @@ then press Enter, and the Windows command prompt should appear.
 Type
 
 C:\\>python --version
+
 Python 3.8.5
 
 c:\\>python -m pip install pygame
+
 Requirement already satisfied: pygame in c:\users\paul_g\appdata\roaming\python\python38\site-packages (1.9.6)
 
 OR 
@@ -24,11 +26,12 @@ OR
 Test that the library is installed
 
 c:\\>python
-import pygame
+
+\>\>\>import pygame
 pygame 1.9.6
 Hello from the pygame community. https://www.pygame.org/contribute.html
 
-exit()
+\>\>\>exit()
 
 c:\\>
 
