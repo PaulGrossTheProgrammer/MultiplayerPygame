@@ -16,6 +16,12 @@ effects_dict["fireball"] = fireball
 explosion = pygame.mixer.Sound(sounds_folder + "explosion.wav")
 effects_dict["explosion"] = explosion
 
+painhit = pygame.mixer.Sound(sounds_folder + "paind.wav")
+effects_dict["painhit"] = painhit
+
+monsterkill = pygame.mixer.Sound(sounds_folder + "deathr.wav")
+effects_dict["monsterkill"] = monsterkill
+
 pickup_1 = pygame.mixer.Sound(sounds_folder + "pickup-01.wav")
 pickup_1.set_volume(0.1)
 effects_dict["pickup_1"] = pickup_1

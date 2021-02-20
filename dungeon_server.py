@@ -1,4 +1,4 @@
-# Internet Dungeon Server
+# Dungeon Internet Server
 
 import socket
 import threading
@@ -24,7 +24,6 @@ import message
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind(('', common.server_port))
-
 
 hostname = socket.gethostname()
 local_ip = socket.gethostbyname(hostname)
@@ -73,7 +72,7 @@ class GameServerSocketThread(threading.Thread):
             request = self.client_socket.recv(2048).decode()
 
             # Put the request on the game queue
-            shared_request_queue.put([self, request])
+            shared_request_queue.put((self, request))
 
             # WAIT for the response ...
             response = self.private_response_queue.get()
@@ -154,6 +153,7 @@ while game_on:
                             monster.hit(1)
                             effects.shared.add("BloodHit").set_position(
                                 monster.rect.center)
+                            soundeffects.add_shared("painhit")
                         response = "response:bumped\n"
                     elif request_type == "add-gem":
                         x = int(data["x"])
@@ -166,6 +166,7 @@ while game_on:
                         print("[{}] Added gem at {},{}".format(username, x, y))
                     elif request_type == "add-fireball":
                         sprite = fireball.shared.add("FireballRed", data)
+                        soundeffects.add_shared("fireball")
                         response = "response:added-fireball\n"
                         username = socket_logins[socket_thread]
                         print("[{}] Added fireball".format(username))
@@ -227,6 +228,7 @@ while game_on:
         True, False, collided=pygame.sprite.collide_circle)
     for gem in coll_gem_monster:
         effects.shared.add("Vanish").set_position(gem.rect.center)
+        soundeffects.add_shared("pickup_1")
 
     # Fireball and monster collisions
     coll_fb_monster = pygame.sprite.groupcollide(
@@ -242,12 +244,14 @@ while game_on:
                 bump_sprite(monster, fb.angle, 20)
                 effects.shared.add("BloodHit").set_position(
                     monster.rect.center)
+                soundeffects.add_shared("painhit")
 
     # Remove dead monsters
     for monster in monsters.shared.spritegroup:
         if monster.dead is True:
             monster.kill()
             effects.shared.add("BloodKill").set_position(monster.rect.center)
+            soundeffects.add_shared("monsterkill")
 
     # Explode completed fireballs
     for fb in fireball.shared.spritegroup:

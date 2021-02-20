@@ -1,8 +1,8 @@
 # Dungeon Internet Client
 
+import socket
 import threading
 import queue
-import socket
 import math
 
 import pygame
