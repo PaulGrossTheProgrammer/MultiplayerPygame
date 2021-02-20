@@ -42,7 +42,9 @@ Now double-clicking the pygame dungeon_server.py and dungeon_client.py should ru
 Run the server, noting your IP address, for example:
 
 Game Running:
+
 LOCAL IP address = 192.168.1.103
+
 Waiting for clients on port 56789...
 
 Go to another PC and install pygame, then download from Github and run the dungeon_client.py,
