@@ -28,7 +28,9 @@ Test that the library is installed
 c:\\>python
 
 \>\>\>import pygame
+
 pygame 1.9.6
+
 Hello from the pygame community. https://www.pygame.org/contribute.html
 
 \>\>\>exit()
