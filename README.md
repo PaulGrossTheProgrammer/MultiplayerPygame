@@ -19,12 +19,18 @@ c:\\>python -m pip install pygame
 
 Requirement already satisfied: pygame in c:\users\paul_g\appdata\roaming\python\python38\site-packages (1.9.6)
 
-OR 
+OR
+
 Collecting pygame
+
   Downloading pygame-2.0.1-cp39-cp39-win_amd64.whl (5.2 MB)
+  
      |¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦| 5.2 MB 1.7 MB/s
+     
 Installing collected packages: pygame
+
 Successfully installed pygame-2.0.1
+
 
 Now test that the library is installed
 
