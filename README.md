@@ -13,7 +13,7 @@ Type
 
 C:\\>python --version
 
-Python 3.8.5
+Python 3.9.2
 
 c:\\>python -m pip install pygame
 
