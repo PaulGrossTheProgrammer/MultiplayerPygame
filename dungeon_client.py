@@ -23,6 +23,7 @@ response_queue = queue.Queue()  # GameClientThread <- SocketThread
 
 local_error = None
 
+
 def reset_game():
     global wait_for_update
 
@@ -71,7 +72,7 @@ class GameClientSocketThread(threading.Thread):
                 if server_socket is not None:
                     server_socket.close()
 
-                reset_game()
+                response_queue.put("response:reset-all\n")
                 local_error = "Failed to connect to [{}]".format(self.server)
                 print(local_error)
                 time.sleep(1)
@@ -263,9 +264,13 @@ while game_on is not False:
                     module_updates[module] = module_group
                 else:
                     sprite_update = False
+
                 if response_type == "soundeffects":
                     print(data)
                     soundeffects.decode_effects(data)
+
+                if response_type == "reset-all":
+                    reset_game()
 
             elif sprite_update is True:
                 module_group.append(data)
