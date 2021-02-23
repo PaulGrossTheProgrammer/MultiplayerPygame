@@ -3,7 +3,7 @@ An example of how to build an MMORPG using Python's PyGame library
 
 How to install pygame on Python for Windows:
 
-Right-click start button, choose Run, or Windows + R keys
+Right-click start button, choose Run, or Windows key + R key:
 
 When prompted to "Open:", type:
 cmd 
