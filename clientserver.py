@@ -137,8 +137,8 @@ class SharedSpriteGroup():
             else:
                 sprite.update()
 
-    def clear(self):
-        self.spritegroup.clear()
+    def empty(self):
+        self.spritegroup.empty()
         self.next_id = 1
 
     def add(self, typename, data=None, sprite_id=None):

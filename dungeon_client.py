@@ -4,6 +4,7 @@ import socket
 import threading
 import queue
 import math
+import time
 
 import pygame
 
@@ -20,6 +21,19 @@ import fireball
 request_queue = queue.Queue()  # GameClientThread -> SocketThread
 response_queue = queue.Queue()  # GameClientThread <- SocketThread
 
+local_error = None
+
+def reset_game():
+    global wait_for_update
+
+    wait_for_update = False
+
+    gemstones.shared.empty()
+    effects.shared.empty()
+    monsters.shared.empty()
+    dungeontiles.shared.empty()
+    fireball.shared.empty()
+
 # This thread establishes a socket connection to the Game Server.
 class GameClientSocketThread(threading.Thread):
     def __init__(self, server):
@@ -27,26 +41,40 @@ class GameClientSocketThread(threading.Thread):
         self.server = server
 
     def run(self):
+        global local_error
+
         print("GameClientSocketThread Started:")
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.connect((self.server, common.server_port))
 
-        # The first request is always a login
-        request = "request:login,username:{}".format(username)
         while True:
-            # Send the request to the server socket
-            server_socket.sendall(bytes(request, 'UTF-8'))
+            try:
+                server_socket = socket.socket(
+                    socket.AF_INET, socket.SOCK_STREAM)
+                server_socket.connect((self.server, common.server_port))
+                local_error = None
 
-            # WAIT for a response from the server socket...
-            response = server_socket.recv(8192).decode()
+                # The first request is always a login
+                request = "request:login,username:{}".format(username)
+                while True:
+                    # Send the request to the server socket
+                    server_socket.sendall(bytes(request, 'UTF-8'))
 
-            # Send the response to the Game Window
-            response_queue.put(response)
+                    # WAIT for a response from the server socket...
+                    response = server_socket.recv(8192).decode()
 
-            # WAIT here for a new request from the Game Client Window
-            request = request_queue.get()
+                    # Send the response to the Game Window
+                    response_queue.put(response)
 
-        server_socket.close()
+                    # WAIT here for a new request from the Game Client Window
+                    request = request_queue.get()
+
+            except (ConnectionRefusedError, ConnectionResetError):
+                if server_socket is not None:
+                    server_socket.close()
+
+                reset_game()
+                local_error = "Failed to connect to [{}]".format(self.server)
+                print(local_error)
+                time.sleep(1)
 
 SERVER = input("Enter server address: ")
 if SERVER == "":
@@ -72,17 +100,20 @@ class StatusLine(pygame.sprite.Sprite):
     def __init__(self, position):
         super().__init__()
         self.position = position
-        self.update_image()
 
-    def update_image(self):
-        text = "Name: {}".format(username)
+    def update(self):
+        if local_error is not None:
+            text = local_error
+        else:
+            text = "Name: {}".format(username)
+
         self.image = self.font_30.render(text, True, common.WHITE)
         self.rect = self.image.get_rect()
         self.rect.center = self.position
 
 
 status_group = pygame.sprite.Group()
-status_sprite = StatusLine([150, 20])
+status_sprite = StatusLine([250, 20])
 status_group.add(status_sprite)
 
 towerselected_group = pygame.sprite.Group()

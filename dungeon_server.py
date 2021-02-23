@@ -46,6 +46,7 @@ class GameSocketListenerThread(threading.Thread):
 
 GameSocketListenerThread().start()
 
+socket_logins = {}  # Stores usernames for Client Sockets
 
 # This queue is used for THREAD-SAFE, one-way communication.
 # ALL SocketThreads send requests to the GameServer on this shared Queue,
@@ -67,17 +68,22 @@ class GameServerSocketThread(threading.Thread):
         print("New socket connection from: {}".format(clientAddress))
 
     def run(self):
-        while True:
-            # WAIT for requests from the Client socket...
-            request = self.client_socket.recv(2048).decode()
+        try:
+            while True:
+                # WAIT for requests from the Client socket...
+                request = self.client_socket.recv(2048).decode()
 
-            # Put the request on the game queue
-            shared_request_queue.put((self, request))
+                # Put the request on the game queue
+                shared_request_queue.put((self, request))
 
-            # WAIT for the response ...
-            response = self.private_response_queue.get()
+                # WAIT for the response ...
+                response = self.private_response_queue.get()
 
-            self.client_socket.send(bytes(response, 'UTF-8'))
+                self.client_socket.send(bytes(response, 'UTF-8'))
+        except (ConnectionResetError):
+            # Remove this threaqd from the socket login dictionary
+            socket_logins.pop(self)
+            print("logins remainaing... {}".format(len(socket_logins)))
 
         print("Client at ", self.clientAddress, " disconnected...")
 
@@ -100,8 +106,6 @@ dungeontiles.shared.add("FireballTower").set_position((750, 550))
 
 monster_retarget_trigger = common.frames_per_second / 2
 monster_retarget_counter = 0
-
-socket_logins = {}  # Stores usernames for Client Sockets
 
 # This is the main thread.
 # Inside the while loop the code never waits for anything,
