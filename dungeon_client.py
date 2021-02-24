@@ -21,8 +21,6 @@ import fireball
 request_queue = queue.Queue()  # GameClientThread -> SocketThread
 response_queue = queue.Queue()  # GameClientThread <- SocketThread
 
-local_error = None
-
 
 def reset_game():
     global wait_for_update
@@ -40,42 +38,64 @@ class GameClientSocketThread(threading.Thread):
     def __init__(self, server):
         threading.Thread.__init__(self)
         self.server = server
+        self.socket_active = True
+        self.has_error = False
 
     def run(self):
-        global local_error
-
         print("GameClientSocketThread Started:")
 
-        while True:
+        while self.socket_active:
             try:
                 server_socket = socket.socket(
                     socket.AF_INET, socket.SOCK_STREAM)
                 server_socket.connect((self.server, common.server_port))
-                local_error = None
+                response_queue.put("response:error-clear\n")
 
                 # The first request is always a login
                 request = "request:login,username:{}".format(username)
-                while True:
+                while self.socket_active:
+                    self.has_error = False
                     # Send the request to the server socket
                     server_socket.sendall(bytes(request, 'UTF-8'))
 
                     # WAIT for a response from the server socket...
                     response = server_socket.recv(8192).decode()
 
-                    # Send the response to the Game Window
-                    response_queue.put(response)
+                    # Handle the special case of termination
+                    if response.startswith("response:socket-terminated"):
+                        self.socket_active = False
+                    else:
+                        # Send the response to the Game Window
+                        response_queue.put(response)
 
                     # WAIT here for a new request from the Game Client Window
-                    request = request_queue.get()
+                    if self.socket_active:
+                        request = request_queue.get()
 
             except (ConnectionRefusedError, ConnectionResetError):
+                self.has_error = True
+                response_queue.put("response:reset-all\n")
+
+                # FIXME - convert local_error into a message on the queue
+                # response_queue.put("response:error,message:Error\n")
+                error_text = "Failed to connect to [{}]".format(self.server)
+
+                template = "response:error-set,text:{}\n"
+                response_queue.put(template.format(error_text))
+                print(error_text)
+
+                if self.socket_active:
+                    time.sleep(1)
+
+            finally:
                 if server_socket is not None:
                     server_socket.close()
 
-                response_queue.put("response:reset-all\n")
-                local_error = "Failed to connect to [{}]".format(self.server)
-                print(local_error)
-                time.sleep(1)
+        print("Socket thread terminated")
+
+    def terminate(self):
+        self.socket_active = False
+
 
 SERVER = input("Enter server address: ")
 if SERVER == "":
@@ -101,10 +121,11 @@ class StatusLine(pygame.sprite.Sprite):
     def __init__(self, position):
         super().__init__()
         self.position = position
+        self.error = None
 
     def update(self):
-        if local_error is not None:
-            text = local_error
+        if self.error is not None:
+            text = self.error
         else:
             text = "Name: {}".format(username)
 
@@ -112,6 +133,11 @@ class StatusLine(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = self.position
 
+    def set_error(self, message):
+        self.error = message
+
+    def clear_error(self):
+        self.error = None
 
 status_group = pygame.sprite.Group()
 status_sprite = StatusLine([250, 20])
@@ -266,11 +292,15 @@ while game_on is not False:
                     sprite_update = False
 
                 if response_type == "soundeffects":
-                    print(data)
                     soundeffects.decode_effects(data)
 
                 if response_type == "reset-all":
                     reset_game()
+                if response_type == "error-set":
+                    text = data["text"]
+                    status_sprite.set_error(text)
+                if response_type == "error-clear":
+                    status_sprite.clear_error()
 
             elif sprite_update is True:
                 module_group.append(data)
@@ -327,5 +357,9 @@ while game_on is not False:
 
     common.clock.tick(common.frames_per_second)
 
+request_queue.put("request:logout\n")
+
+if client_socket_thread.has_error:
+    client_socket_thread.terminate()
+
 pygame.quit()
-quit()

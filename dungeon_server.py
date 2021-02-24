@@ -22,7 +22,6 @@ import message
 # The created SocketThread exists only while the Internet Game Client
 # needs to play the game, and is closed when the player leaves.
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind(('', common.server_port))
 
 hostname = socket.gethostname()
@@ -68,8 +67,9 @@ class GameServerSocketThread(threading.Thread):
         print("New socket connection from: {}".format(clientAddress))
 
     def run(self):
+        socket_active = True
         try:
-            while True:
+            while socket_active:
                 # WAIT for requests from the Client socket...
                 request = self.client_socket.recv(2048).decode()
 
@@ -80,15 +80,19 @@ class GameServerSocketThread(threading.Thread):
                 response = self.private_response_queue.get()
 
                 self.client_socket.send(bytes(response, 'UTF-8'))
-        except (ConnectionResetError):
+
+                if response.startswith("response:socket-terminated"):
+                    socket_active = False
+
+        except (ConnectionResetError, ConnectionAbortedError):
             # Remove this threaqd from the socket login dictionary
             socket_logins.pop(self)
-            print("logins remainaing... {}".format(len(socket_logins)))
 
         print("Client at ", self.clientAddress, " disconnected...")
 
-
+#
 # Game Server
+#
 
 def bump_sprite(sprite, angle, power):
     dx = math.cos(angle) * power
@@ -139,6 +143,11 @@ while game_on:
                         response = "response:login,username:{}\n".format(
                             username)
                         socket_logins[socket_thread] = username
+                    elif request_type == "logout":
+                        username = socket_logins[socket_thread]
+                        print("[{}] logged out".format(username))
+                        socket_logins.pop(socket_thread)
+                        response = "response:socket-terminated\n"
                     elif request_type == "update":
                         response = gemstones.shared.encode_update()
                         response += effects.shared.encode_update()
@@ -190,7 +199,7 @@ while game_on:
                 if socket_thread in socket_logins:
                     username = socket_logins[socket_thread]
                     print("Request error from user: [{}]".format(username))
-                print(request)
+                print("[{}]".format(request))
                 print(response)
 
             socket_thread.private_response_queue.put(response)
