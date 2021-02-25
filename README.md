@@ -52,7 +52,7 @@ Run the server, noting your IP address, for example:
 
 Game Running:
 
-LOCAL IP address = 192.168.1.103
+LOCAL IP address = 192.168.1.100
 
 Waiting for clients on port 56789...
 
