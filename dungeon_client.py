@@ -49,6 +49,9 @@ class GameClientSocketThread(threading.Thread):
                 server_socket = socket.socket(
                     socket.AF_INET, socket.SOCK_STREAM)
                 server_socket.connect((self.server, common.server_port))
+                print("Connected to [{}]".format(self.server))
+
+                # Tell the game to clear any error status
                 response_queue.put("response:error-clear\n")
 
                 # The first request is always a login
@@ -74,18 +77,17 @@ class GameClientSocketThread(threading.Thread):
 
             except (ConnectionRefusedError, ConnectionResetError):
                 self.has_error = True
+
+                # Reset the game and send the error messsage
                 response_queue.put("response:reset-all\n")
-
-                # FIXME - convert local_error into a message on the queue
-                # response_queue.put("response:error,message:Error\n")
                 error_text = "Failed to connect to [{}]".format(self.server)
-
                 template = "response:error-set,text:{}\n"
                 response_queue.put(template.format(error_text))
                 print(error_text)
 
                 if self.socket_active:
                     time.sleep(1)
+                    print("retrying connection ...")
 
             finally:
                 if server_socket is not None:
@@ -100,7 +102,7 @@ class GameClientSocketThread(threading.Thread):
 SERVER = input("Enter server address: ")
 if SERVER == "":
     SERVER = "localhost"
-print("Connecting to {}".format(SERVER))
+print("Server set to {}".format(SERVER))
 
 username = input("Your name: ")
 
