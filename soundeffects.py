@@ -11,46 +11,87 @@ pygame.mixer.init(buffer=128)
 
 effects_dict = {}
 
+class Soundeffect():
+
+    def __init__(self, sound, default_volume=1.0):
+        self.sound = sound
+        self.default_volume = default_volume
+        self.sound.set_volume(default_volume)
+
+    def play(self):
+        self.sound.play()
+
+def set_global_volume(volume):
+    if volume < 0.0:
+        volume = 0.0
+    if volume > 1.0:
+        volume = 1.0
+
+    # TODO - convert to exponential curve
+
+    for effect in effects_dict.values():
+        # default_volume = 1.0
+        default_volume = effect.default_volume
+        new_volume = default_volume * volume
+        effect.sound.set_volume(new_volume)
+
+
+def add_effect(name, sound, default_volume=1.0):
+    effect = Soundeffect(sound, default_volume)
+    effects_dict[name] = effect
+
+
 fireball = pygame.mixer.Sound(sounds_folder + "fireball.wav")
-effects_dict["fireball"] = fireball
+# effects_dict["fireball"] = fireball
+add_effect("fireball", fireball)
+
 explosion = pygame.mixer.Sound(sounds_folder + "explosion.wav")
-effects_dict["explosion"] = explosion
+# effects_dict["explosion"] = explosion
+add_effect("explosion", explosion)
 
 painhit = pygame.mixer.Sound(sounds_folder + "paind.wav")
-effects_dict["painhit"] = painhit
+# effects_dict["painhit"] = painhit
+add_effect("painhit", painhit)
 
 monsterkill = pygame.mixer.Sound(sounds_folder + "deathr.wav")
-effects_dict["monsterkill"] = monsterkill
+# effects_dict["monsterkill"] = monsterkill
+add_effect("monsterkill", monsterkill)
 
 pickup_1 = pygame.mixer.Sound(sounds_folder + "pickup-01.wav")
-pickup_1.set_volume(0.1)
-effects_dict["pickup_1"] = pickup_1
+# pickup_1.set_volume(0.1)
+# effects_dict["pickup_1"] = pickup_1
+add_effect("pickup_1", pickup_1, default_volume=0.1)
 
 pickup_2 = pygame.mixer.Sound(sounds_folder + "pickup-02.wav")
-pickup_2.set_volume(0.1)
-effects_dict["pickup_2"] = pickup_2
+# pickup_2.set_volume(0.1)
+# effects_dict["pickup_2"] = pickup_2
+add_effect("pickup_2", pickup_2, default_volume=0.1)
 
 pickup_3 = pygame.mixer.Sound(sounds_folder + "pickup-03.wav")
-pickup_3.set_volume(0.1)
-effects_dict["pickup_3"] = pickup_3
+# pickup_3.set_volume(0.1)
+# effects_dict["pickup_3"] = pickup_3
+add_effect("pickup_3", pickup_3, default_volume=0.1)
 
 pickup_4 = pygame.mixer.Sound(sounds_folder + "pickup-04.wav")
-pickup_4.set_volume(0.1)
-effects_dict["pickup_4"] = pickup_4
+# pickup_4.set_volume(0.1)
+# effects_dict["pickup_4"] = pickup_4
+add_effect("pickup_4", pickup_4, default_volume=0.1)
 
 pickup_5 = pygame.mixer.Sound(sounds_folder + "Item2A.wav")
-pickup_5.set_volume(0.5)
-effects_dict["pickup_5"] = pickup_5
+# pickup_5.set_volume(0.5)
+# effects_dict["pickup_5"] = pickup_5
+add_effect("pickup_5", pickup_5, default_volume=0.5)
 
 pickup_6 = pygame.mixer.Sound(sounds_folder + "Menu2A.wav")
-pickup_6.set_volume(0.5)
-effects_dict["pickup_6"] = pickup_6
+# pickup_6.set_volume(0.5)
+# effects_dict["pickup_6"] = pickup_6
+add_effect("pickup_6", pickup_6, default_volume=0.5)
 
 
 def play(name):
     effect_instance = effects_dict.get(name, None)
     if effect_instance is not None:
-        effect_instance.play()
+        effect_instance.sound.play()
     else:
         print("Unknown sound effect [{}]".format(name))
 

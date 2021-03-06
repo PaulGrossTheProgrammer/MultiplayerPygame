@@ -157,8 +157,7 @@ class SharedSpriteGroup():
         setattr(sprite, "sprite_id", sprite_id)
         setattr(sprite, "typename", typename)
 
-        if sprite is not None:
-            self.spritegroup.add(sprite)
+        self.spritegroup.add(sprite)
 
         return sprite
 

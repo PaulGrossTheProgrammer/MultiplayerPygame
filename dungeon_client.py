@@ -178,6 +178,8 @@ def draw_arrow(screen, start, end, color, thickness):
     pygame.draw.line(screen, color, end, end2, thickness)
 
 
+soundeffects.set_global_volume(0.1)
+
 curr_gemtype = "GemGreen"
 fireball_start = None
 wait_for_update = False
