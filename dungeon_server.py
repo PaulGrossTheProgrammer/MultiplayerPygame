@@ -100,9 +100,6 @@ def bump_sprite(sprite, angle, power):
     sprite.scroll_position(dx, dy)
 
 
-gemstones.shared.add("GemGreen").set_position((100, 100))
-gemstones.shared.add("GemRed").set_position((200, 100))
-
 dungeontiles.shared.add("FireballTower").set_position((50, 50))
 dungeontiles.shared.add("FireballTower").set_position((750, 50))
 dungeontiles.shared.add("FireballTower").set_position((50, 550))
@@ -274,7 +271,7 @@ while game_on:
             soundeffects.add_shared("explosion")
 
     # Replace dead monsters
-    if len(monsters.shared.spritegroup) < 2:
+    if len(monsters.shared.spritegroup) < 4:
         rand_x = random.randrange(150, common.SCREEN_WIDTH - 150)
         rand_y = random.randrange(150, common.SCREEN_HEIGHT - 150)
         pos = (rand_x, rand_y)
@@ -283,6 +280,17 @@ while game_on:
         m = monsters.shared.add(typename)
         m.set_position(pos)
         effects.shared.add("SparkleYellow").set_position(pos)
+
+    # Replace gems
+    if len(gemstones.shared.spritegroup) < 4:
+        rand_x = random.randrange(150, common.SCREEN_WIDTH - 150)
+        rand_y = random.randrange(150, common.SCREEN_HEIGHT - 150)
+        pos = (rand_x, rand_y)
+
+        typename = gemstones.shared.random_typename()
+        g = gemstones.shared.add(typename)
+        g.set_position(pos)
+        effects.shared.add("SparkleWhite").set_position(pos)
 
     soundeffects.remove_expired()
 

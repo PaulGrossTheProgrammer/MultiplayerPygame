@@ -147,11 +147,6 @@ status_group.add(status_sprite)
 
 towerselected_group = pygame.sprite.Group()
 
-# Game Client Window - Main Thread
-
-def draw_line(screen, start, end, color, thickness):
-    pygame.draw.line(screen, color, start, end, thickness)
-
 def draw_arrow(screen, start, end, color, thickness):
     pygame.draw.line(screen, color, start, end, thickness)
 
@@ -177,6 +172,7 @@ def draw_arrow(screen, start, end, color, thickness):
     end2 = (int(end[0] - dx2), int(end[1] - dy2))
     pygame.draw.line(screen, color, end, end2, thickness)
 
+# Game Client Window - Main Thread
 
 soundeffects.set_global_volume(0.1)
 
@@ -185,9 +181,7 @@ fireball_start = None
 wait_for_update = False
 new_requests = []
 game_on = True
-# while game_on:
-# while game_on is True:
-while game_on is not False:
+while game_on:
     #
     # EVENT HANDLING:
     #
@@ -346,16 +340,8 @@ while game_on is not False:
     status_group.draw(screen)
 
     if fireball_start is not None:
-        '''
-        pygame.draw.line(screen, common.RED, fireball_start,
-                         pygame.mouse.get_pos(), 2)
-        draw_line(screen, fireball_start, pygame.mouse.get_pos(),
-                  common.RED, 8)
-        draw_line(screen, fireball_start, pygame.mouse.get_pos(),
-                  common.BLACK, 4)
-        '''
-        draw_arrow(screen, fireball_start, pygame.mouse.get_pos(),
-                   common.RED, 6)
+        draw_arrow(screen, fireball_start,
+                   pygame.mouse.get_pos(), common.RED, 5)
 
     pygame.display.flip()
 
