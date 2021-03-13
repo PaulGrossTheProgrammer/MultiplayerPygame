@@ -16,6 +16,7 @@ import effects
 import monsters
 import dungeontiles
 import fireball
+import cursor
 
 # Each queue is used for THREAD-SAFE, one-way communication
 request_queue = queue.Queue()  # GameClientThread -> SocketThread
@@ -115,6 +116,8 @@ pygame.init()
 pygame.display.set_mode([common.SCREEN_WIDTH, common.SCREEN_HEIGHT])
 screen = pygame.display.get_surface()
 
+pygame.mouse.set_visible(False)
+
 class StatusLine(pygame.sprite.Sprite):
 
     font_30 = pygame.font.SysFont(pygame.font.get_default_font(), 30)
@@ -145,32 +148,47 @@ status_group = pygame.sprite.Group()
 status_sprite = StatusLine([250, 20])
 status_group.add(status_sprite)
 
+cursor_group = pygame.sprite.Group()
+cursor = cursor.PlayerCursor()
+cursor_group.add(cursor)
+
 towerselected_group = pygame.sprite.Group()
 
-def draw_arrow(screen, start, end, color, thickness):
-    pygame.draw.line(screen, color, start, end, thickness)
-
-    # calculate angle
-    dx = end[0] - start[0]
-    dy = end[1] - start[1]
+def calculate_angle(p1, p2):
+    dx = p2[0] - p1[0]
+    dy = p2[1] - p1[1]
     angle = math.atan2(dy, dx)
+    return angle
 
-    head_length = 15
+
+def calc_endpoint(start, angle, distance):
+    dx = int(math.cos(angle) * distance)
+    dy = int(math.sin(angle) * distance)
+    end_x = start[0] + dx
+    end_y = start[1] + dy
+    return (end_x, end_y)
+
+
+def draw_arrow(screen, start, end, color, thickness):
+    head_length = 80
     head_angle = math.pi/6
 
-    # Draw first head line
-    angle1 = angle + head_angle
-    dx1 = math.cos(angle1) * head_length
-    dy1 = math.sin(angle1) * head_length
-    end1 = (int(end[0] - dx1), int(end[1] - dy1))
-    pygame.draw.line(screen, color, end, end1, thickness)
+    angle_line = calculate_angle(end, start)
 
-    # Draw second head line
-    angle2 = angle - head_angle
-    dx2 = math.cos(angle2) * head_length
-    dy2 = math.sin(angle2) * head_length
-    end2 = (int(end[0] - dx2), int(end[1] - dy2))
-    pygame.draw.line(screen, color, end, end2, thickness)
+    # Calculate all endpoints
+    end_head1 = calc_endpoint(end, angle_line + head_angle, head_length)
+    end_head2 = calc_endpoint(end, angle_line - head_angle, head_length)
+    mid = calc_endpoint(end, angle_line, head_length / 2)
+
+    # Draw the arrow shaft
+    pygame.draw.line(screen, color, start, mid, thickness)
+
+    # Draw arrowhead
+    pygame.draw.line(screen, color, end, end_head1, thickness)
+    pygame.draw.line(screen, color, end, end_head2, thickness)
+    pygame.draw.line(screen, color, mid, end_head1, thickness)
+    pygame.draw.line(screen, color, mid, end_head2, thickness)
+
 
 # Game Client Window - Main Thread
 
@@ -207,10 +225,12 @@ while game_on:
                 event.pos, "FireballTower")
 
             if clicked_gem is not None:
+                '''
                 template = "request:delete-gem,id:{}\n"
                 new_request = template.format(clicked_gem.sprite_id)
                 print(new_request)
                 new_requests.append(new_request)
+                '''
             elif clicked_monster is not None:
                 template = "request:bump-monster,id:{}\n"
                 new_request = template.format(clicked_monster.sprite_id)
@@ -222,11 +242,13 @@ while game_on:
                 effect.set_position(clicked_tower.rect.center)
                 towerselected_group.add(effect)
             else:
+                '''
                 template = "request:add-gem,gemtype:{},x:{},y:{}\n"
                 new_request = template.format(
                     curr_gemtype, event.pos[0], event.pos[1])
                 print(new_request)
                 new_requests.append(new_request)
+                '''
         if (event.type == pygame.MOUSEBUTTONUP and event.button == 1):
             if fireball_start is not None:
                 dx = event.pos[0] - fireball_start[0]
@@ -328,6 +350,12 @@ while game_on:
     status_group.update()
     towerselected_group.update()
 
+    cursor_group.update()
+
+    # Position the cursor at the mouse pointer
+    curson_pos = pygame.mouse.get_pos()
+    cursor.set_pos(curson_pos)
+
     # Draw game screen
     screen.fill(common.BLACK)
 
@@ -337,7 +365,9 @@ while game_on:
     fireball.shared.draw(screen)
     effects.shared.draw(screen)
     towerselected_group.draw(screen)
+
     status_group.draw(screen)
+    cursor_group.draw(screen)
 
     if fireball_start is not None:
         draw_arrow(screen, fireball_start,
