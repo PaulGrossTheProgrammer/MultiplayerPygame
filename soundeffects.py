@@ -1,4 +1,5 @@
 import time
+import random
 
 import pygame
 from common import sounds_folder
@@ -71,6 +72,12 @@ add_effect("pickup_5", pickup_5, default_volume=0.5)
 pickup_6 = pygame.mixer.Sound(sounds_folder + "Menu2A.wav")
 add_effect("pickup_6", pickup_6, default_volume=0.5)
 
+
+all_pickups = ("pickup_1", "pickup_2", "pickup_3",
+               "pickup_4", "pickup_5", "pickup_6")
+
+def random_pickup():
+    return random.choice(all_pickups)
 
 def play(name):
     effect_instance = effects_dict.get(name, None)
