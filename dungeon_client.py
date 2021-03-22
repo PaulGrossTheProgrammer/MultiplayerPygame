@@ -76,7 +76,7 @@ class GameClientSocketThread(threading.Thread):
                     if self.socket_active:
                         request = request_queue.get()
 
-            except (ConnectionRefusedError, ConnectionResetError):
+            except Exception:
                 self.has_error = True
 
                 # Reset the game and send the error messsage
@@ -154,40 +154,30 @@ cursor_group.add(cursor)
 
 towerselected_group = pygame.sprite.Group()
 
-def calculate_angle(p1, p2):
-    dx = p2[0] - p1[0]
-    dy = p2[1] - p1[1]
-    angle = math.atan2(dy, dx)
-    return angle
-
-
-def calc_endpoint(start, angle, distance):
-    dx = int(math.cos(angle) * distance)
-    dy = int(math.sin(angle) * distance)
-    end_x = start[0] + dx
-    end_y = start[1] + dy
-    return (end_x, end_y)
-
-
 def draw_arrow(screen, start, end, color, thickness):
-    head_length = 80
+    pygame.draw.line(screen, color, start, end, thickness)
+
+    # calculate angle
+    dx = end[0] - start[0]
+    dy = end[1] - start[1]
+    angle = math.atan2(dy, dx)
+
+    head_length = 15
     head_angle = math.pi/6
 
-    angle_line = calculate_angle(end, start)
+    # Draw first head line
+    angle1 = angle + head_angle
+    dx1 = math.cos(angle1) * head_length
+    dy1 = math.sin(angle1) * head_length
+    end1 = (int(end[0] - dx1), int(end[1] - dy1))
+    pygame.draw.line(screen, color, end, end1, thickness)
 
-    # Calculate all endpoints
-    end_head1 = calc_endpoint(end, angle_line + head_angle, head_length)
-    end_head2 = calc_endpoint(end, angle_line - head_angle, head_length)
-    mid = calc_endpoint(end, angle_line, head_length / 2)
-
-    # Draw the arrow shaft
-    pygame.draw.line(screen, color, start, mid, thickness)
-
-    # Draw arrowhead
-    pygame.draw.line(screen, color, end, end_head1, thickness)
-    pygame.draw.line(screen, color, end, end_head2, thickness)
-    pygame.draw.line(screen, color, mid, end_head1, thickness)
-    pygame.draw.line(screen, color, mid, end_head2, thickness)
+    # Draw second head line
+    angle2 = angle - head_angle
+    dx2 = math.cos(angle2) * head_length
+    dy2 = math.sin(angle2) * head_length
+    end2 = (int(end[0] - dx2), int(end[1] - dy2))
+    pygame.draw.line(screen, color, end, end2, thickness)
 
 
 # Game Client Window - Main Thread
@@ -195,7 +185,11 @@ def draw_arrow(screen, start, end, color, thickness):
 soundeffects.set_global_volume(0.1)
 
 curr_gemtype = "GemGreen"
+
 fireball_start = None
+gemdrag_start = None
+gemdrag_id = None
+
 wait_for_update = False
 new_requests = []
 game_on = True
@@ -225,12 +219,8 @@ while game_on:
                 event.pos, "FireballTower")
 
             if clicked_gem is not None:
-                '''
-                template = "request:delete-gem,id:{}\n"
-                new_request = template.format(clicked_gem.sprite_id)
-                print(new_request)
-                new_requests.append(new_request)
-                '''
+                gemdrag_start = clicked_gem.rect.center
+                gemdrag_id = clicked_gem.sprite_id
             elif clicked_monster is not None:
                 template = "request:bump-monster,id:{}\n"
                 new_request = template.format(clicked_monster.sprite_id)
@@ -263,6 +253,18 @@ while game_on:
                 print(new_request)
                 new_requests.append(new_request)
 
+            if gemdrag_start is not None:
+                dx = event.pos[0] - gemdrag_start[0]
+                dy = event.pos[1] - gemdrag_start[1]
+                angle = math.atan2(dy, dx)
+                template = "request:gem-drag,id:{},angle:{}\n"
+                new_request = template.format(
+                    gemdrag_id, angle)
+
+                gemdrag_start = None
+                gemdrag_id = None
+                print(new_request)
+                new_requests.append(new_request)
     #
     # REQUEST HANDLING:
     #
@@ -373,6 +375,9 @@ while game_on:
         draw_arrow(screen, fireball_start,
                    pygame.mouse.get_pos(), common.RED, 5)
 
+    if gemdrag_start is not None:
+        draw_arrow(screen, gemdrag_start,
+                   pygame.mouse.get_pos(), common.WHITE, 5)
     pygame.display.flip()
 
     common.clock.tick(common.frames_per_second)

@@ -79,13 +79,13 @@ class GameServerSocketThread(threading.Thread):
                 # WAIT for the response ...
                 response = self.private_response_queue.get()
 
-                self.client_socket.send(bytes(response, 'UTF-8'))
-
                 if response.startswith("response:socket-terminated"):
                     socket_active = False
 
-        except (ConnectionResetError, ConnectionAbortedError):
-            # Remove this threaqd from the socket login dictionary
+                self.client_socket.send(bytes(response, 'UTF-8'))
+
+        except Exception:
+            # Remove this thread from the socket login dictionary
             socket_logins.pop(self)
 
         print("Client at ", self.clientAddress, " disconnected...")
@@ -165,6 +165,14 @@ while game_on:
                                 monster.rect.center)
                             soundeffects.add_shared("painhit")
                         response = "response:bumped\n"
+                    elif request_type == "gem-drag":
+                        sprite_id = int(data["id"])
+                        angle = float(data["angle"])
+                        gem = gemstones.shared.get(sprite_id)
+                        if gem is not None:
+                            print("Draging gem: " + str(gem))
+                            bump_sprite(gem, angle, 40)
+                        response = "response:draggedgem\n"
                     elif request_type == "add-gem":
                         x = int(data["x"])
                         y = int(data["y"])
@@ -238,7 +246,8 @@ while game_on:
         True, False, collided=pygame.sprite.collide_circle)
     for gem in coll_gem_monster:
         effects.shared.add("Vanish").set_position(gem.rect.center)
-        soundeffects.add_shared("pickup_1")
+        sound = soundeffects.random_pickup()
+        soundeffects.add_shared(sound)
 
     # Fireball and monster collisions
     coll_fb_monster = pygame.sprite.groupcollide(
@@ -271,9 +280,9 @@ while game_on:
             soundeffects.add_shared("explosion")
 
     # Replace dead monsters
-    if len(monsters.shared.spritegroup) < 4:
-        rand_x = random.randrange(150, common.SCREEN_WIDTH - 150)
-        rand_y = random.randrange(150, common.SCREEN_HEIGHT - 150)
+    if len(monsters.shared.spritegroup) < 6:
+        rand_x = random.randrange(110, common.SCREEN_WIDTH - 110)
+        rand_y = random.randrange(110, common.SCREEN_HEIGHT - 110)
         pos = (rand_x, rand_y)
 
         typename = monsters.shared.random_typename()
@@ -282,9 +291,9 @@ while game_on:
         effects.shared.add("SparkleYellow").set_position(pos)
 
     # Replace gems
-    if len(gemstones.shared.spritegroup) < 4:
-        rand_x = random.randrange(150, common.SCREEN_WIDTH - 150)
-        rand_y = random.randrange(150, common.SCREEN_HEIGHT - 150)
+    if len(gemstones.shared.spritegroup) < 6:
+        rand_x = random.randrange(110, common.SCREEN_WIDTH - 110)
+        rand_y = random.randrange(110, common.SCREEN_HEIGHT - 110)
         pos = (rand_x, rand_y)
 
         typename = gemstones.shared.random_typename()
