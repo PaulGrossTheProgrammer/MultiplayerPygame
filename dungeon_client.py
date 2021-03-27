@@ -154,30 +154,34 @@ cursor_group.add(cursor)
 
 towerselected_group = pygame.sprite.Group()
 
+
 def draw_arrow(screen, start, end, color, thickness):
     pygame.draw.line(screen, color, start, end, thickness)
 
     # calculate angle
-    dx = end[0] - start[0]
-    dy = end[1] - start[1]
+    dx = start[0] - end[0]
+    dy = start[1] - end[1]
     angle = math.atan2(dy, dx)
 
-    head_length = 15
+    head_length = 80
     head_angle = math.pi/6
 
     # Draw first head line
     angle1 = angle + head_angle
     dx1 = math.cos(angle1) * head_length
     dy1 = math.sin(angle1) * head_length
-    end1 = (int(end[0] - dx1), int(end[1] - dy1))
+    end1 = (int(end[0] + dx1), int(end[1] + dy1))
     pygame.draw.line(screen, color, end, end1, thickness)
 
     # Draw second head line
     angle2 = angle - head_angle
     dx2 = math.cos(angle2) * head_length
     dy2 = math.sin(angle2) * head_length
-    end2 = (int(end[0] - dx2), int(end[1] - dy2))
+    end2 = (int(end[0] + dx2), int(end[1] + dy2))
     pygame.draw.line(screen, color, end, end2, thickness)
+
+    # Close the arrowhead
+    pygame.draw.line(screen, color, end1, end2, thickness)
 
 
 # Game Client Window - Main Thread
