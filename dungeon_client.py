@@ -181,7 +181,12 @@ def draw_arrow(screen, start, end, color, thickness):
     pygame.draw.line(screen, color, end, end2, thickness)
 
     # Close the arrowhead
-    pygame.draw.line(screen, color, end1, end2, thickness)
+    #pygame.draw.line(screen, color, end1, end2, thickness)
+    dx_mid = math.cos(angle) * head_length * 0.5
+    dy_mid = math.sin(angle) * head_length * 0.5
+    mid = (int(end[0] + dx_mid), int(end[1] + dy_mid))
+    pygame.draw.line(screen, color, end1, mid, thickness)
+    pygame.draw.line(screen, color, end2, mid, thickness)
 
 
 # Game Client Window - Main Thread
