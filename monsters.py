@@ -167,6 +167,17 @@ class Monster(pygame.sprite.Sprite):
         self.delta_y = dy
 
 
+class Grue(Monster):
+    sheet = spritesheet.Spritesheet(
+        2, 2, filename=image_folder+"Grue.png")
+    frames = sheet.get_frames()
+
+    radius = 20
+    speed = 1.0
+
+    start_health = 40
+
+
 class PurplePeopleEater(Monster):
     sheet = spritesheet.Spritesheet(
         4, 1, filename=image_folder+"PurplePeopleEater-02.png")
@@ -201,5 +212,5 @@ class BlueGhost(Monster):
 
 # Client/Server code
 
-class_list = (PurplePeopleEater, GreenZombie, BlueGhost)
+class_list = {PurplePeopleEater, GreenZombie, BlueGhost, Grue}
 shared = clientserver.SharedSpriteGroup("monsters", class_list)
