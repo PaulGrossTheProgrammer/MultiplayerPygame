@@ -166,17 +166,15 @@ class Monster(pygame.sprite.Sprite):
         self.delta_x = dx
         self.delta_y = dy
 
-
 class Grue(Monster):
     sheet = spritesheet.Spritesheet(
-        2, 2, filename=image_folder+"Grue.png")
+        2, 2, filename=image_folder+"GrueBloodyGrinHorns.png")
     frames = sheet.get_frames()
 
     radius = 20
     speed = 1.0
 
     start_health = 40
-
 
 class PurplePeopleEater(Monster):
     sheet = spritesheet.Spritesheet(
