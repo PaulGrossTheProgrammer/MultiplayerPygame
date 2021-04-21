@@ -81,9 +81,12 @@ class Monster(pygame.sprite.Sprite):
         self.image = self.frames[self.frame_curr]
 
         # Update float postion values for better accuracy
+        # Temp - disable movement
+        '''
         self.position_x += self.delta_x
         self.position_y += self.delta_y
         self.rect.center = [int(self.position_x), int(self.position_y)]
+        '''
 
     def update_server(self):
         self.update()

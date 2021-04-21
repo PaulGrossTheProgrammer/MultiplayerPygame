@@ -9,7 +9,8 @@ import time
 import pygame
 
 import common
-import message
+from common import calc_angle, calc_endpoint
+import clientserver
 import soundeffects
 import gemstones
 import effects
@@ -156,35 +157,28 @@ towerselected_group = pygame.sprite.Group()
 
 
 def draw_arrow(screen, start, end, color, thickness):
-    pygame.draw.line(screen, color, start, end, thickness)
-
-    # calculate angle
-    dx = start[0] - end[0]
-    dy = start[1] - end[1]
-    angle = math.atan2(dy, dx)
-
+    print(start)
+    print(end)
     head_length = 80
     head_angle = math.pi/6
 
-    # Draw first head line
+    # calculate angles
+    angle = calc_angle(end, start)
     angle1 = angle + head_angle
-    dx1 = math.cos(angle1) * head_length
-    dy1 = math.sin(angle1) * head_length
-    end1 = (int(end[0] + dx1), int(end[1] + dy1))
-    pygame.draw.line(screen, color, end, end1, thickness)
-
-    # Draw second head line
     angle2 = angle - head_angle
-    dx2 = math.cos(angle2) * head_length
-    dy2 = math.sin(angle2) * head_length
-    end2 = (int(end[0] + dx2), int(end[1] + dy2))
+
+    # Calculate points
+    end1 = calc_endpoint(end, angle1, head_length)
+    end2 = calc_endpoint(end, angle2, head_length)
+    mid = calc_endpoint(end, angle, head_length * 0.5)
+    print(mid)
+
+    # Draw the arrow
+    pygame.draw.line(screen, color, start, mid, thickness)
+
+    pygame.draw.line(screen, color, end, end1, thickness)
     pygame.draw.line(screen, color, end, end2, thickness)
 
-    # Close the arrowhead
-    #pygame.draw.line(screen, color, end1, end2, thickness)
-    dx_mid = math.cos(angle) * head_length * 0.5
-    dy_mid = math.sin(angle) * head_length * 0.5
-    mid = (int(end[0] + dx_mid), int(end[1] + dy_mid))
     pygame.draw.line(screen, color, end1, mid, thickness)
     pygame.draw.line(screen, color, end2, mid, thickness)
 
@@ -307,7 +301,7 @@ while game_on:
         module_updates = {}
 
         for line in response.splitlines(False):
-            data = message.decode_dictionary(line)
+            data = clientserver.decode_dictionary(line)
             if "response" in data:
                 response_type = data["response"]
                 if response_type == "update":

@@ -9,13 +9,14 @@ import random
 import pygame
 
 import common
+from common import calc_distance, calc_angle
 import soundeffects
 import gemstones
 import effects
 import monsters
 import fireball
 import dungeontiles
-import message
+import clientserver
 
 # This ListenerThread creates a SocketThread per Internet Game Client.
 # It listens on the public game Port for new Internet Game CLients.
@@ -131,7 +132,7 @@ while game_on:
             response = None
 
             for line in request.splitlines(False):
-                data = message.decode_dictionary(line)
+                data = clientserver.decode_dictionary(line)
                 if "request" in data:
                     request_type = data["request"]
                     if request_type == "login":
@@ -278,6 +279,22 @@ while game_on:
             effects.shared.add("ExplosionRed").set_position(fb.rect.center)
             fb.kill()
             soundeffects.add_shared("explosion")
+
+            # TODO: Damage nearby monsters
+            # Look for monsters within explosion range
+            expl_range = 200
+            for monster in monsters.shared.spritegroup:
+                f_center = fb.rect.center
+                m_center = monster.rect.center
+                if calc_distance(f_center, m_center) <= expl_range:
+                    monster.hit(1)
+                    if monster.dead is not True:
+                        bump_sprite(monster, fb.angle, 10)
+                        soundeffects.add_shared("painhit")
+                        angle = calc_angle(f_center, m_center)
+                        bump_sprite(monster, angle, 20)
+                        effects.shared.add("BloodHit").set_position(
+                            monster.rect.center)
 
     # Replace dead monsters
     if len(monsters.shared.spritegroup) < 6:
