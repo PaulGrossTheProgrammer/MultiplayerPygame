@@ -72,6 +72,7 @@ class Monster(pygame.sprite.Sprite):
         self.decision_counter = 0
 
     def update(self):
+        # Update the image
         self.frame_change_counter += 1
         if self.frame_change_counter >= self.frame_change_trigger:
             self.frame_change_counter = 0
@@ -80,7 +81,7 @@ class Monster(pygame.sprite.Sprite):
                 self.frame_curr = 0
         self.image = self.frames[self.frame_curr]
 
-        # Update float postion values for better accuracy
+        # Update position
         self.position_x += self.delta_x
         self.position_y += self.delta_y
         self.rect.center = [int(self.position_x), int(self.position_y)]

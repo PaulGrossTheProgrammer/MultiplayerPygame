@@ -260,18 +260,6 @@ while game_on:
         # Damage each monster
         for monster in coll_fb_monster[fb]:
             monster.hit(5)
-            if monster.dead is not True:
-                bump_sprite(monster, fb.angle, 20)
-                effects.shared.add("BloodHit").set_position(
-                    monster.rect.center)
-                soundeffects.add_shared("painhit")
-
-    # Remove dead monsters
-    for monster in monsters.shared.spritegroup:
-        if monster.dead is True:
-            monster.kill()
-            effects.shared.add("BloodKill").set_position(monster.rect.center)
-            soundeffects.add_shared("monsterkill")
 
     # Explode completed fireballs
     for fb in fireball.shared.spritegroup:
@@ -280,21 +268,29 @@ while game_on:
             fb.kill()
             soundeffects.add_shared("explosion")
 
-            # TODO: Damage nearby monsters
+            # Damage nearby monsters
             # Look for monsters within explosion range
             expl_range = 200
             for monster in monsters.shared.spritegroup:
-                f_center = fb.rect.center
+                fb_center = fb.rect.center
                 m_center = monster.rect.center
-                if calc_distance(f_center, m_center) <= expl_range:
+                m_distance = calc_distance(fb_center, m_center)
+                if m_distance <= expl_range:
                     monster.hit(1)
                     if monster.dead is not True:
-                        bump_sprite(monster, fb.angle, 10)
-                        soundeffects.add_shared("painhit")
-                        angle = calc_angle(f_center, m_center)
+                        angle = calc_angle(fb_center, m_center)
                         bump_sprite(monster, angle, 20)
+
+                        soundeffects.add_shared("painhit")
                         effects.shared.add("BloodHit").set_position(
                             monster.rect.center)
+
+    # Remove dead monsters
+    for monster in monsters.shared.spritegroup:
+        if monster.dead is True:
+            monster.kill()
+            effects.shared.add("BloodKill").set_position(monster.rect.center)
+            soundeffects.add_shared("monsterkill")
 
     # Replace dead monsters
     if len(monsters.shared.spritegroup) < 6:

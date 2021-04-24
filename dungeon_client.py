@@ -157,8 +157,6 @@ towerselected_group = pygame.sprite.Group()
 
 
 def draw_arrow(screen, start, end, color, thickness):
-    print(start)
-    print(end)
     head_length = 80
     head_angle = math.pi/6
 
@@ -171,7 +169,6 @@ def draw_arrow(screen, start, end, color, thickness):
     end1 = calc_endpoint(end, angle1, head_length)
     end2 = calc_endpoint(end, angle2, head_length)
     mid = calc_endpoint(end, angle, head_length * 0.5)
-    print(mid)
 
     # Draw the arrow
     pygame.draw.line(screen, color, start, mid, thickness)
@@ -181,6 +178,39 @@ def draw_arrow(screen, start, end, color, thickness):
 
     pygame.draw.line(screen, color, end1, mid, thickness)
     pygame.draw.line(screen, color, end2, mid, thickness)
+
+
+def draw_arrow_old(screen, start, end, color, thickness):
+    # calculate angle
+    dx = start[0] - end[0]
+    dy = start[1] - end[1]
+    angle = math.atan2(dy, dx)
+
+    head_length = 80
+    head_angle = math.pi/6
+
+    # Draw first head line
+    angle1 = angle + head_angle
+    dx1 = math.cos(angle1) * head_length
+    dy1 = math.sin(angle1) * head_length
+    end1 = (int(end[0] + dx1), int(end[1] + dy1))
+    pygame.draw.line(screen, color, end, end1, thickness)
+
+    # Draw second head line
+    angle2 = angle - head_angle
+    dx2 = math.cos(angle2) * head_length
+    dy2 = math.sin(angle2) * head_length
+    end2 = (int(end[0] + dx2), int(end[1] + dy2))
+    pygame.draw.line(screen, color, end, end2, thickness)
+
+    # Draw to mid
+    dx_mid = math.cos(angle) * head_length * 0.5
+    dy_mid = math.sin(angle) * head_length * 0.5
+    mid = (int(end[0] + dx_mid), int(end[1] + dy_mid))
+    pygame.draw.line(screen, color, mid, end1, thickness)
+    pygame.draw.line(screen, color, mid, end2, thickness)
+
+    pygame.draw.line(screen, color, start, mid, thickness)
 
 
 # Game Client Window - Main Thread
@@ -375,8 +405,8 @@ while game_on:
     cursor_group.draw(screen)
 
     if fireball_start is not None:
-        draw_arrow(screen, fireball_start,
-                   pygame.mouse.get_pos(), common.RED, 5)
+        draw_arrow_old(screen, fireball_start,
+                       pygame.mouse.get_pos(), common.RED, 5)
 
     if gemdrag_start is not None:
         draw_arrow(screen, gemdrag_start,
