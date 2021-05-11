@@ -85,4 +85,5 @@ class GemPink(Gemstone):
 # Client/Server code
 
 class_list = (GemGreen, GemGreen, GemRed, GemPink, GemDiamond)
-shared = clientserver.SharedSpriteGroup("gemstones", class_list)
+# shared = clientserver.SharedSpriteGroup("gemstones", class_list, enable_delta=True)
+shared = clientserver.SharedSpriteGroup(__name__, class_list)

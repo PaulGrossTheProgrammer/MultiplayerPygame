@@ -11,6 +11,7 @@ import pygame
 import common
 from common import calc_angle, calc_endpoint
 import clientserver
+from clientserver import MAX_RESPONSE_BYTES
 import soundeffects
 import gemstones
 import effects
@@ -35,6 +36,7 @@ def reset_game():
     dungeontiles.shared.empty()
     fireball.shared.empty()
 
+
 # This thread establishes a socket connection to the Game Server.
 class GameClientSocketThread(threading.Thread):
     def __init__(self, server):
@@ -48,8 +50,7 @@ class GameClientSocketThread(threading.Thread):
 
         while self.socket_active:
             try:
-                server_socket = socket.socket(
-                    socket.AF_INET, socket.SOCK_STREAM)
+                server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 server_socket.connect((self.server, common.server_port))
                 print("Connected to [{}]".format(self.server))
 
@@ -61,17 +62,23 @@ class GameClientSocketThread(threading.Thread):
                 while self.socket_active:
                     self.has_error = False
                     # Send the request to the server socket
-                    server_socket.sendall(bytes(request, 'UTF-8'))
+                    server_socket.sendall(bytes(request, "UTF-8"))
 
                     # WAIT for a response from the server socket...
-                    response = server_socket.recv(8192).decode()
+                    response = server_socket.recv(MAX_RESPONSE_BYTES).decode()
 
                     # Handle the special case of termination
                     if response.startswith("response:socket-terminated"):
                         self.socket_active = False
                     else:
                         # Send the response to the Game Window
+                        # DEBUG:
+                        # print(response)
+                        # print("Response bytes: {}".format(len(response)))
                         response_queue.put(response)
+
+                    # DEBUG - delay request processing
+                    # time.sleep(0.4)
 
                     # WAIT here for a new request from the Game Client Window
                     if self.socket_active:
@@ -119,6 +126,7 @@ screen = pygame.display.get_surface()
 
 pygame.mouse.set_visible(False)
 
+
 class StatusLine(pygame.sprite.Sprite):
 
     font_30 = pygame.font.SysFont(pygame.font.get_default_font(), 30)
@@ -145,20 +153,10 @@ class StatusLine(pygame.sprite.Sprite):
     def clear_error(self):
         self.error = None
 
-status_group = pygame.sprite.Group()
-status_sprite = StatusLine([250, 20])
-status_group.add(status_sprite)
-
-cursor_group = pygame.sprite.Group()
-cursor = cursor.PlayerCursor()
-cursor_group.add(cursor)
-
-towerselected_group = pygame.sprite.Group()
-
 
 def draw_arrow(screen, start, end, color, thickness):
     head_length = 80
-    head_angle = math.pi/6
+    head_angle = math.pi / 6
 
     # calculate angles
     angle = calc_angle(end, start)
@@ -180,42 +178,18 @@ def draw_arrow(screen, start, end, color, thickness):
     pygame.draw.line(screen, color, end2, mid, thickness)
 
 
-def draw_arrow_old(screen, start, end, color, thickness):
-    # calculate angle
-    dx = start[0] - end[0]
-    dy = start[1] - end[1]
-    angle = math.atan2(dy, dx)
+status_group = pygame.sprite.Group()
+status_sprite = StatusLine([250, 20])
+status_group.add(status_sprite)
 
-    head_length = 80
-    head_angle = math.pi/6
+cursor_group = pygame.sprite.Group()
+cursor = cursor.PlayerCursor()
+cursor_group.add(cursor)
 
-    # Draw first head line
-    angle1 = angle + head_angle
-    dx1 = math.cos(angle1) * head_length
-    dy1 = math.sin(angle1) * head_length
-    end1 = (int(end[0] + dx1), int(end[1] + dy1))
-    pygame.draw.line(screen, color, end, end1, thickness)
+towerselected_group = pygame.sprite.Group()
+tower_locked = False
 
-    # Draw second head line
-    angle2 = angle - head_angle
-    dx2 = math.cos(angle2) * head_length
-    dy2 = math.sin(angle2) * head_length
-    end2 = (int(end[0] + dx2), int(end[1] + dy2))
-    pygame.draw.line(screen, color, end, end2, thickness)
-
-    # Draw to mid
-    dx_mid = math.cos(angle) * head_length * 0.5
-    dy_mid = math.sin(angle) * head_length * 0.5
-    mid = (int(end[0] + dx_mid), int(end[1] + dy_mid))
-    pygame.draw.line(screen, color, mid, end1, thickness)
-    pygame.draw.line(screen, color, mid, end2, thickness)
-
-    pygame.draw.line(screen, color, start, mid, thickness)
-
-
-# Game Client Window - Main Thread
-
-soundeffects.set_global_volume(0.1)
+soundeffects.set_global_volume(0.05)
 
 curr_gemtype = "GemGreen"
 
@@ -228,9 +202,9 @@ new_requests = []
 game_on = True
 while game_on:
     #
-    # EVENT HANDLING:
+    # USER EVENT HANDLING:
     #
-    # Process any mouse and keyboard evets
+    # Process any mouse and keyboard events
     events = pygame.event.get()
     for event in events:
         if event.type == pygame.QUIT:
@@ -245,6 +219,22 @@ while game_on:
                 curr_gemtype = "GemPink"
             if event.key == pygame.K_d:
                 curr_gemtype = "GemDiamond"
+
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
+            clicked_tower = dungeontiles.shared.collide_sprite_type(
+                event.pos, "FireballTower")
+
+            towerselected_group.empty()
+            if clicked_tower is None:
+                tower_locked = False
+                fireball_start = None
+            else:
+                fireball_start = clicked_tower.rect.center
+                effect = effects.FireCircle()
+                effect.set_position(clicked_tower.rect.center)
+                towerselected_group.add(effect)
+                tower_locked = True
+
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             clicked_gem = gemstones.shared.collide_sprite(event.pos)
             clicked_monster = monsters.shared.collide_sprite(event.pos)
@@ -264,47 +254,36 @@ while game_on:
                 effect = effects.FireCircle()
                 effect.set_position(clicked_tower.rect.center)
                 towerselected_group.add(effect)
-            else:
-                '''
-                template = "request:add-gem,gemtype:{},x:{},y:{}\n"
-                new_request = template.format(
-                    curr_gemtype, event.pos[0], event.pos[1])
-                print(new_request)
-                new_requests.append(new_request)
-                '''
-        if (event.type == pygame.MOUSEBUTTONUP and event.button == 1):
+
+        if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             if fireball_start is not None:
-                dx = event.pos[0] - fireball_start[0]
-                dy = event.pos[1] - fireball_start[1]
-                angle = math.atan2(dy, dx)
+                angle = calc_angle(fireball_start, event.pos)
                 template = "request:add-fireball,x:{},y:{},angle:{}\n"
                 new_request = template.format(
                     fireball_start[0], fireball_start[1], angle)
-
-                towerselected_group.empty()
-                fireball_start = None
-                print(new_request)
                 new_requests.append(new_request)
 
+                if tower_locked is False:
+                    towerselected_group.empty()
+                    fireball_start = None
+
             if gemdrag_start is not None:
-                dx = event.pos[0] - gemdrag_start[0]
-                dy = event.pos[1] - gemdrag_start[1]
-                angle = math.atan2(dy, dx)
+                angle = calc_angle(gemdrag_start, event.pos)
                 template = "request:gem-drag,id:{},angle:{}\n"
-                new_request = template.format(
-                    gemdrag_id, angle)
+                new_request = template.format(gemdrag_id, angle)
 
                 gemdrag_start = None
                 gemdrag_id = None
-                print(new_request)
                 new_requests.append(new_request)
+
     #
     # REQUEST HANDLING:
     #
+
     # If we are not waiting for an update, and there are
     # no other requests, request an update
     if wait_for_update is False and len(new_requests) == 0:
-        new_requests.append("request:update\n")
+        new_requests.append(clientserver.client_request_all_updates())
         wait_for_update = True
 
     # Send any new requests to the ClientSocketThread queue
@@ -320,71 +299,55 @@ while game_on:
     try:
         # DON'T WAIT on queue, always move on even if the queue is empty
         response = response_queue.get_nowait()
-    except(queue.Empty):
+    except (queue.Empty):
         response = None
 
     if response is not None:
-        load_update = False
-        id_list = []
-        module = None
-        sprite_type = None
-        module_updates = {}
+        all_lines = response.splitlines(False)
 
-        for line in response.splitlines(False):
+        # Handle command lines in the response
+        # And extract the updates
+        update_datalines = []
+        for line in all_lines:
             data = clientserver.decode_dictionary(line)
             if "response" in data:
                 response_type = data["response"]
-                if response_type == "update":
-                    sprite_update = True
-                    wait_for_update = False
-                    if "module" in data:  # Hack for new class
-                        module = data["module"]
-                    else:
-                        module = data["group"]
-                    module_group = []
-                    module_updates[module] = module_group
-                else:
-                    sprite_update = False
-
-                if response_type == "soundeffects":
-                    soundeffects.decode_effects(data)
 
                 if response_type == "reset-all":
                     reset_game()
-                if response_type == "error-set":
+                elif response_type == "error-set":
                     text = data["text"]
                     status_sprite.set_error(text)
-                if response_type == "error-clear":
+                elif response_type == "error-clear":
                     status_sprite.clear_error()
+                elif response_type == "":
+                    status_sprite.clear_error()
+                else:
+                    update_datalines.append(data)
+            else:
+                update_datalines.append(data)
 
-            elif sprite_update is True:
-                module_group.append(data)
+        # Try to Decode any remaining data as updates
+        if len(update_datalines) > 0:
+            was_an_update = clientserver.client_decode_all_updates(update_datalines)
 
-        for module, datalines in module_updates.items():
-            if module == "gemstones":
-                gemstones.shared.decode_update(datalines)
-            elif module == "effects":
-                effects.shared.decode_update(datalines)
-            elif module == "monsters":
-                monsters.shared.decode_update(datalines)
-            elif module == "fireball":
-                fireball.shared.decode_update(datalines)
-            elif module == "dungeontiles":
-                dungeontiles.shared.decode_update(datalines)
+            if was_an_update is True:
+                wait_for_update = False
 
     #
     # ANIMATION HANDLING:
     #
 
-    # Update sprite animation
+    # Update shared sprites
     gemstones.shared.update()
     effects.shared.update()
     monsters.shared.update()
     fireball.shared.update()
     dungeontiles.shared.update()
+
+    # Update local sprites
     status_group.update()
     towerselected_group.update()
-
     cursor_group.update()
 
     # Position the cursor at the mouse pointer
@@ -404,13 +367,13 @@ while game_on:
     status_group.draw(screen)
     cursor_group.draw(screen)
 
+    # Display arrows
     if fireball_start is not None:
-        draw_arrow_old(screen, fireball_start,
-                       pygame.mouse.get_pos(), common.RED, 5)
+        draw_arrow(screen, fireball_start, pygame.mouse.get_pos(), common.RED, 5)
 
     if gemdrag_start is not None:
-        draw_arrow(screen, gemdrag_start,
-                   pygame.mouse.get_pos(), common.WHITE, 5)
+        draw_arrow(screen, gemdrag_start, pygame.mouse.get_pos(), common.WHITE, 5)
+
     pygame.display.flip()
 
     common.clock.tick(common.frames_per_second)

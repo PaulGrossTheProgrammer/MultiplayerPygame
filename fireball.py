@@ -80,11 +80,11 @@ class DirectedSprite(pygame.sprite.Sprite):
         """Needed by DistributedSpriteGroup.encode_update()"""
 
         data = {}
-        data["x"] = str(self.position_x)
-        data["y"] = str(self.position_y)
-        data["dx"] = str(self.delta_x)
-        data["dy"] = str(self.delta_y)
-        data["angle"] = str(self.angle)
+        data["x"] = format(self.position_x, '.2f')
+        data["y"] = format(self.position_y, '.2f')
+        data["dx"] = format(self.delta_x, '.2f')
+        data["dy"] = format(self.delta_y, '.2f')
+        data["angle"] = format(self.angle, '.2f')
         return data
 
     def set_data(self, data: dict):

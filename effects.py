@@ -38,8 +38,8 @@ class Effect(pygame.sprite.Sprite):
         return data
 
     def set_data(self, data: dict):
-        x = int(data.get("x", "0"))
-        y = int(data.get("y", "0"))
+        x = int(float(data.get("x", "0")))
+        y = int(float(data.get("y", "0")))
         self.rect.center = (x, y)
 
     def set_position(self, position: tuple):
