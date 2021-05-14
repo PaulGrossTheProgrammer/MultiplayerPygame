@@ -1,6 +1,7 @@
 # Client/Server code to support distributed sprites
 
 import random
+import time
 
 import pygame
 
@@ -12,12 +13,15 @@ groups_full_update = {}
 groups_delta_update = {}
 
 MAX_RESPONSE_BYTES = 8192
+# MAX_RESPONSE_BYTES = 1024
 
 class delta_entry():
 
     def __init__(self, delta_id, change):
         self.delta_id = delta_id
         self.change = change
+
+        self.time_s = time.time()
 
 delta_request_template = ",{}:{}"
 
@@ -45,7 +49,8 @@ def server_encode_all_responses(data, socket_thread):
         # TODO - pass remaing bytes to encode_delta_response()
         # to allow partial delta updates
         bytes_remaining = MAX_RESPONSE_BYTES - len(total_response)
-        delta_response = group.server_encode_delta_response(data, bytes_remaining)
+        delta_response = group.server_encode_delta_response(data, socket_thread,
+                                                            bytes_remaining)
         if len(total_response) + len(delta_response) <= MAX_RESPONSE_BYTES:
             total_response += delta_response
 
@@ -152,7 +157,7 @@ class SharedSpriteGroup():
         self.server = False
         self.enable_delta = False
 
-    def set_as_server(self, enable_delta=False):
+    def set_as_server(self, enable_delta=False, delta_timeout_s=-1):
         self.server = True
 
         self.enable_delta = enable_delta
@@ -162,6 +167,11 @@ class SharedSpriteGroup():
             groups_delta_update[self.group_name] = self
             self.enable_delta = True
             self.delta_list = []
+            self.client_catchups = {}
+
+            # The max seconds to keep old delta entries.
+            # When set to -1, delta entries are never deleted.
+            self.delta_timeout_s = delta_timeout_s
 
     def server_encode_full_response(self, delta_id=0):
         '''Called by the Server to create an update string
@@ -242,27 +252,74 @@ class SharedSpriteGroup():
             if curr_id not in id_list:
                 self.remove(sprite)
 
-    def server_encode_delta_response(self, data, bytes_remaining):
-
+    def server_encode_delta_response(self, data, client_thread, bytes_remaining):
         if self.group_name in data:
             client_delta_id = int(data[self.group_name])
         else:
-            client_delta_id = 0
+            client_delta_id = 0  # A blank delta id means zero.
 
-
-        # TODO - Old entries from the delta list may removed,
-        # so a catchup list has to be created.
-        # This catchup is per client, because each client
-        # can be in a different place in their catchup,
-        # and the catchup is removed when the client is up to date.
-
-        # Encode the entries after the current entry
+        template = "response:delta,group:{},delta_id:{},{}\n"
         delta_new = ""
-        for entry in self.delta_list:
+
+        if client_delta_id >= 0:
+            print("Number of delta entries = {}".format(len(self.delta_list)))
+            # print("Server delta_id = {}".format(self.curr_delta_id))
+
+            # Exit if both client and server match current deltas.
+            if self.curr_delta_id == client_delta_id:
+                # TODO - build response in __init__() instead
+                return "response:delta,group:{},type:EMPTY\n".format(self.group_name)
+
+            # Encode the entries after the current entry
+            print("Server scanning list...")
+            found_start = False
+            for entry in self.delta_list:
+                curr_did = entry.delta_id
+                # print(str(curr_did))
+
+                if found_start is False and curr_did == client_delta_id + 1:
+                    found_start = True
+                    print("Found start")
+
+                if found_start is True and curr_did > client_delta_id:
+                    change = entry.change
+                    message = template.format(self.group_name, curr_did, change)
+
+                    # Stop adding messages if bytes_remaining would be exceeded
+                    if len(delta_new) + len(message) > bytes_remaining:
+                        print("WARNING: message size exceeded")
+                        print("Stopping before {}".format(curr_did))
+                        break
+
+                    delta_new += message
+
+            if len(delta_new) > 0:
+                return delta_new
+            else:
+                # FIXME - if there are no matching entries, create a catchup list
+                print("WARNING - no delta entries found for client")
+                self.server_create_catchup(client_thread)
+                client_delta_id = 0
+
+        print("TODO - handling client catchup...")
+
+        # Get the catchup for the client thread
+        curr_did = None
+        found_start = False
+        catchup_complete = False
+
+        # FIXME - the catchup doesn't work properly when the message size is exceeded.
+
+        catchup_list = self.client_catchups[client_thread]
+        for entry in catchup_list:
             curr_did = entry.delta_id
-            if curr_did > client_delta_id:
+
+            if found_start is False and curr_did == (client_delta_id - 1):
+                found_start = True
+                print("Found CATCHUP start")
+
+            if found_start is True and curr_did < client_delta_id:
                 change = entry.change
-                template = "response:delta,group:{},delta_id:{},{}\n"
                 message = template.format(self.group_name, curr_did, change)
 
                 # Stop adding messages if bytes_remaining would be exceeded
@@ -271,13 +328,51 @@ class SharedSpriteGroup():
                     print("Stopping before {}".format(curr_did))
                     break
 
-                delta_new += message
+                if change.startswith("new_delta_id:"):
+                    catchup_complete = True
 
-        if len(delta_new) == 0:
-            # TODO - build this in __init__() instead
-            delta_new = "response:delta,group:{},type:EMPTY\n".format(self.group_name)
+            delta_new += message
+
+        # When the last catchup entry is encoded, remove the whole catchup list
+        if catchup_complete is True:
+            self.client_catchups.pop(client_thread)
 
         return delta_new
+
+    def server_create_catchup(self, client_thread):
+        # Create a new catchup list
+        print("Building new catchup list for client.")
+        catchup_list = []
+        self.client_catchups[client_thread] = catchup_list
+
+        catchup_id = 0
+
+        # Encode an "add" entry for each sprite.
+        for sprite in self.spritegroup:
+            sprite_id = getattr(sprite, "sprite_id")
+            typename = getattr(sprite, "typename")
+
+            line = "add_id:{},typename:{}".format(sprite_id, typename)
+            # add remaining data elements
+            data = sprite.get_data()
+            for key in data:
+                encoded_entry = "," + key + ":" + str(data[key])
+                line += encoded_entry
+
+            # Count backwards from zero. A negative number is the flag for catchup ids.
+            catchup_id -= 1
+
+            print(catchup_id)
+            print("CATCHUP: " + line)
+            entry = delta_entry(catchup_id, line)
+            catchup_list.append(entry)
+
+        # The last catchup entry is a special command that points the client back to
+        # the main delta list.
+        catchup_id -= 1
+        entry = delta_entry(catchup_id,
+                            "new_delta_id:{}".format(self.curr_delta_id))
+        catchup_list.append(entry)
 
     def client_decode_delta_response(self, data):
 
@@ -288,18 +383,20 @@ class SharedSpriteGroup():
 
             data_delta_id = int(data.pop("delta_id"))
 
-            # TODO - figure out why this next block doesn't work???
-            '''
-            if self.curr_delta_id >= data_delta_id:
-                print("WARNING: received old delta id {}".format(data_delta_id))
-                print("Expected later than {}".format(self.curr_delta_id))
-                return
-            '''
             self.curr_delta_id = data_delta_id
             print("{}: Latest delta = {}".format(self.group_name, self.curr_delta_id))
+            if self.curr_delta_id < 0:
+                print("CATCHUP MODE:")
+
+                # A delta_id of -1 forces all sprites in the group to be deleted
+                # Because a catchup has just begun.
+                if self.curr_delta_id == -1:
+                    print("Removing all sprites in " + self.group_name)
+                    self.empty()
+
+                print(data)
 
             # Maybe if rem_id=-1, all sprites in group are cleared?
-
             if "add_id" in data:
                 sprite_id = int(data["add_id"])
                 typename = data["typename"]
@@ -315,6 +412,24 @@ class SharedSpriteGroup():
                     print("ERROR: No Client Sprite")
                 else:
                     sprite.set_data(data)
+            elif "new_delta_id" in data:
+                self.curr_delta_id = int(data["new_delta_id"])
+
+    def clear_old_delta_entries(self):
+        if self.delta_timeout_s < 0:
+            # Timeout disabled
+            return
+
+        # don't delete old delta entries if there are still clients catching up.
+        if len(self.client_catchups) > 0:
+            return
+
+        now_s = time.time()
+        delete_s = now_s - self.delta_timeout_s
+
+        for entry in self.delta_list:
+            if entry.time_s < delete_s:
+                self.delta_list.remove(entry)
 
     def draw(self, screen):
         self.spritegroup.draw(screen)
@@ -335,7 +450,6 @@ class SharedSpriteGroup():
             else:
                 sprite.update()
 
-    # FIXME - flag client usage
     def empty(self):
         # FIXME - if used by server, track delta.
         self.spritegroup.empty()
@@ -363,6 +477,8 @@ class SharedSpriteGroup():
 
         # Only encode new delta entries on the server
         if self.enable_delta is True and self.server is True:
+            self.clear_old_delta_entries()
+
             line = "add_id:{},typename:{}".format(sprite_id, typename)
             # add remaining data elements
             for key in data:
@@ -376,13 +492,14 @@ class SharedSpriteGroup():
 
         return sprite
 
-    # FIXME - flag client usage
     def set_position(self, sprite, pos):
         sprite.set_position(pos)
         sprite_id = getattr(sprite, "sprite_id")
 
         # Only encode new delta entries on the server
         if self.enable_delta is True:
+            self.clear_old_delta_entries()
+
             line = "pos_id:{},x:{},y:{}".format(sprite_id, pos[0], pos[1])
             self.curr_delta_id += 1
             entry = delta_entry(self.curr_delta_id, line)
@@ -405,6 +522,8 @@ class SharedSpriteGroup():
 
         # Only encode new delta entries on the server
         if self.enable_delta is True and self.server is True:
+            self.clear_old_delta_entries()
+
             line = "rem_id:{}".format(getattr(sprite, "sprite_id"))
 
             self.curr_delta_id += 1

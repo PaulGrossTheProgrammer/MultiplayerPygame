@@ -99,7 +99,7 @@ class GameServerSocketThread(threading.Thread):
 
 # Set the shared sprites into server mode
 # All delta mode groups
-gemstones.shared.set_as_server(enable_delta=True)
+gemstones.shared.set_as_server(enable_delta=True, delta_timeout_s=2)
 dungeontiles.shared.set_as_server(enable_delta=True)
 
 # All remaining groups
@@ -148,11 +148,6 @@ while game_on:
 
             for line in request.splitlines(False):
                 data = clientserver.decode_dictionary(line)
-
-                # FIXME - is this old code that should be deleed???
-                # if "delta_request" in data:
-                # print(data)
-                # response = gemstones.shared.encode_delta_response(data)
 
                 if "request" in data:
                     request_type = data["request"]
@@ -293,7 +288,7 @@ while game_on:
             soundeffects.add_shared("monsterkill")
 
     # Replace dead monsters
-    if len(monsters.shared.spritegroup) < 1:
+    if len(monsters.shared.spritegroup) < 10:
         rand_x = random.randrange(110, common.SCREEN_WIDTH - 110)
         rand_y = random.randrange(110, common.SCREEN_HEIGHT - 110)
         pos = {"x": rand_x, "y": rand_y}
@@ -303,7 +298,7 @@ while game_on:
         effects.shared.add("SparkleYellow", pos)
 
     # Replace gems
-    if len(gemstones.shared.spritegroup) < 1:
+    if len(gemstones.shared.spritegroup) < 20:
         rand_x = random.randrange(110, common.SCREEN_WIDTH - 110)
         rand_y = random.randrange(110, common.SCREEN_HEIGHT - 110)
         pos = {"x": rand_x, "y": rand_y}
