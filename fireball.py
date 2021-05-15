@@ -9,7 +9,7 @@ from common import image_folder
 
 class DirectedSprite(pygame.sprite.Sprite):
     speed = 4
-    distance = 500
+    default_distance = 500
 
     def __init__(self):
         super().__init__()
@@ -26,7 +26,7 @@ class DirectedSprite(pygame.sprite.Sprite):
         self.frame_change_counter = 0
         self.delta_x = 0.0
         self.delta_y = 0.0
-        self.distance_end = self.distance
+        self.distance_end = self.default_distance
         self.distance_acc = 0
         self.done = False
 
@@ -89,6 +89,10 @@ class DirectedSprite(pygame.sprite.Sprite):
 
     def set_data(self, data: dict):
         """Needed by DistributedSpriteGroup.decode_update()"""
+
+        # TODO - if distance is specified, set the distance,
+        if "distance" in data:
+            self.distance_end = float(data["distance"])
 
         self.position_x = float(data["x"])
         self.position_y = float(data["y"])
