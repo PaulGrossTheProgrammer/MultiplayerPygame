@@ -16,6 +16,7 @@ import effects
 import monsters
 import fireball
 import dungeontiles
+# import level
 import clientserver
 from clientserver import data_xy
 
@@ -113,6 +114,7 @@ def shift_sprite(sprite, angle, distance):
     new_pos = calc_endpoint(start_pos, angle, distance)
     clientserver.set_position(sprite, new_pos)
 
+# level.start_level("map01.txt")
 
 dungeontiles.shared.add("FireballTower", data_xy((50, 50)))
 dungeontiles.shared.add("FireballTower", data_xy((750, 50)))
@@ -144,7 +146,7 @@ while game_on:
 
         if request is not None:
             response = None
-            print(request)
+            # print(request)
 
             for line in request.splitlines(False):
                 data = clientserver.decode_dictionary(line)
@@ -268,9 +270,15 @@ while game_on:
             expl_range = 200
             for monster in monsters.shared.spritegroup:
                 m_distance = calc_distance(fb.rect.center, monster.rect.center)
+                print("monster distance = " + str(m_distance))
                 if m_distance < expl_range:
                     # TODO - reduce damage with distance
-                    monster.hit(4)
+                    max_damage = 4
+                    damage_ratio = m_distance/expl_range
+                    damage_float = max_damage * damage_ratio
+                    damage = math.ceil(damage_float)
+                    print("monster damage = " + str(damage))
+                    monster.hit(damage)
 
                     # TODO - reduce bump effect with distance
                     if monster.dead is not True:
@@ -288,7 +296,7 @@ while game_on:
             soundeffects.add_shared("monsterkill")
 
     # Replace dead monsters
-    if len(monsters.shared.spritegroup) < 10:
+    if len(monsters.shared.spritegroup) < 1:
         rand_x = random.randrange(110, common.SCREEN_WIDTH - 110)
         rand_y = random.randrange(110, common.SCREEN_HEIGHT - 110)
         pos = {"x": rand_x, "y": rand_y}
@@ -298,7 +306,7 @@ while game_on:
         effects.shared.add("SparkleYellow", pos)
 
     # Replace gems
-    if len(gemstones.shared.spritegroup) < 20:
+    if len(gemstones.shared.spritegroup) < 0:
         rand_x = random.randrange(110, common.SCREEN_WIDTH - 110)
         rand_y = random.randrange(110, common.SCREEN_HEIGHT - 110)
         pos = {"x": rand_x, "y": rand_y}

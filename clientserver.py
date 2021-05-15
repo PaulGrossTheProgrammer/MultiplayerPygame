@@ -262,7 +262,7 @@ class SharedSpriteGroup():
         delta_new = ""
 
         if client_delta_id >= 0:
-            print("Number of delta entries = {}".format(len(self.delta_list)))
+            # print("Number of delta entries = {}".format(len(self.delta_list)))
             # print("Server delta_id = {}".format(self.curr_delta_id))
 
             # Exit if both client and server match current deltas.
@@ -271,7 +271,7 @@ class SharedSpriteGroup():
                 return "response:delta,group:{},type:EMPTY\n".format(self.group_name)
 
             # Encode the entries after the current entry
-            print("Server scanning list...")
+            # print("Server scanning list...")
             found_start = False
             for entry in self.delta_list:
                 curr_did = entry.delta_id
@@ -279,7 +279,7 @@ class SharedSpriteGroup():
 
                 if found_start is False and curr_did == client_delta_id + 1:
                     found_start = True
-                    print("Found start")
+                    # print("Found start")
 
                 if found_start is True and curr_did > client_delta_id:
                     change = entry.change
@@ -297,7 +297,7 @@ class SharedSpriteGroup():
                 return delta_new
             else:
                 # FIXME - if there are no matching entries, create a catchup list
-                print("WARNING - no delta entries found for client")
+                # print("WARNING - no delta entries found for client")
                 self.server_create_catchup(client_thread)
                 client_delta_id = 0
 

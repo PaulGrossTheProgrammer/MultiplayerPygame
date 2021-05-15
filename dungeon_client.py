@@ -9,7 +9,7 @@ import time
 import pygame
 
 import common
-from common import calc_angle, calc_endpoint
+from common import calc_angle, calc_endpoint, calc_distance
 import clientserver
 from clientserver import MAX_RESPONSE_BYTES
 import soundeffects
@@ -258,9 +258,10 @@ while game_on:
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             if fireball_start is not None:
                 angle = calc_angle(fireball_start, event.pos)
-                template = "request:add-fireball,x:{},y:{},angle:{}\n"
+                distance = calc_distance(fireball_start, event.pos)
+                template = "request:add-fireball,x:{},y:{},angle:{},distance:{}\n"
                 new_request = template.format(
-                    fireball_start[0], fireball_start[1], angle)
+                    fireball_start[0], fireball_start[1], angle, distance)
                 new_requests.append(new_request)
 
                 if tower_locked is False:
