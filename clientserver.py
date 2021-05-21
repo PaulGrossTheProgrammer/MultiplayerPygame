@@ -137,6 +137,7 @@ class SharedSpriteGroup():
 
     def __init__(self, group_name, class_list):
         self.spritegroup = pygame.sprite.Group()
+        self.type_groups = {}  # Dict to store sprites of the same type
         self.next_id = 0
 
         self.group_name = group_name
@@ -308,8 +309,6 @@ class SharedSpriteGroup():
         found_start = False
         catchup_complete = False
 
-        # FIXME - the catchup doesn't work properly when the message size is exceeded.
-
         catchup_list = self.client_catchups[client_thread]
         for entry in catchup_list:
             curr_did = entry.delta_id
@@ -416,6 +415,7 @@ class SharedSpriteGroup():
                 self.curr_delta_id = int(data["new_delta_id"])
 
     def clear_old_delta_entries(self):
+
         if self.delta_timeout_s < 0:
             # Timeout disabled
             return
@@ -475,6 +475,12 @@ class SharedSpriteGroup():
 
         self.spritegroup.add(sprite)
 
+        # Also add sprite to its typegroup.
+        if typename not in self.type_groups:
+            self.type_groups[typename] = pygame.sprite.Group()
+        type_group = self.type_groups[typename]
+        type_group.add(sprite)
+
         # Only encode new delta entries on the server
         if self.enable_delta is True and self.server is True:
             self.clear_old_delta_entries()
@@ -520,6 +526,11 @@ class SharedSpriteGroup():
 
         self.spritegroup.remove(sprite)
 
+        # FIXME - remove from all typegroups too
+        typename = getattr(sprite, "typename")
+        type_group = self.type_groups[typename]
+        type_group.remove(sprite)
+
         # Only encode new delta entries on the server
         if self.enable_delta is True and self.server is True:
             self.clear_old_delta_entries()
@@ -548,6 +559,15 @@ class SharedSpriteGroup():
                 return True
         return False
 
+    def typegroup(self, typename):
+        '''Gets the pygame.sprite.Group with all sprites of the given typename.
+        '''
+
+        if typename in self.type_groups:
+            return self.type_groups[typename]
+        else:
+            return pygame.sprite.Group()
+
     def collide_sprites(self, point) -> list:
         coll = []
         for sprite in self.spritegroup:
@@ -556,6 +576,7 @@ class SharedSpriteGroup():
         return coll
 
     def collide_sprites_type(self, point, typename) -> list:
+        # TODO - Lookup the typegroup instead of all the sprites.
         coll = []
         for sprite in self.spritegroup:
             if sprite.rect.collidepoint(point) and sprite.typename == typename:
