@@ -114,12 +114,18 @@ def shift_sprite(sprite, angle, distance):
     new_pos = calc_endpoint(start_pos, angle, distance)
     clientserver.set_position(sprite, new_pos)
 
-# level.start_level("map01.txt")
+# mapname = "map01.txt"
+# mapname = "map_amelie.txt"
+# level.start_level(mapname)
+
+print("Map size: {} tiles".format(len(dungeontiles.shared.spritegroup)))
 
 dungeontiles.shared.add("FireballTower", data_xy((50, 50)))
 dungeontiles.shared.add("FireballTower", data_xy((750, 50)))
 dungeontiles.shared.add("FireballTower", data_xy((50, 550)))
 dungeontiles.shared.add("FireballTower", data_xy((750, 550)))
+
+dungeontiles.shared.add("WallTile", data_xy((350, 300)))
 
 # Monster actions are recacluated periodically
 monster_action_counter = 0
@@ -172,14 +178,11 @@ while game_on:
 
                     elif request_type == "bump-monster":
                         sprite_id = int(data["id"])
+                        angle = float(data["angle"])
                         monster = monsters.shared.get(sprite_id)
                         if monster is not None:
                             print("Bumping monster: " + str(monster))
-                            angle = random.random() * 2 * math.pi
                             shift_sprite(monster, angle, 10)
-                            monster.hit(1)
-                            effects.shared.add("BloodHit").set_position(
-                                monster.rect.center)
                             soundeffects.add_shared("painhit")
                         response = "response:bumped-monster\n"
 
@@ -259,6 +262,13 @@ while game_on:
         for monster in coll_fb_monster[fb]:
             monster.hit(5)
 
+    # Fireball and wall collisions
+    coll_fb_walls = pygame.sprite.groupcollide(
+        fireball.shared.spritegroup, dungeontiles.shared.typegroup("WallTile"),
+        False, False, collided=pygame.sprite.collide_circle)
+    for fb in coll_fb_walls:
+        fb.done = True
+
     # Explode completed fireballs
     for fb in fireball.shared.spritegroup:
         if fb.done is True:
@@ -266,27 +276,71 @@ while game_on:
             effects.shared.add("ExplosionRed", fb.get_data())
             fb.kill()
 
-            # Damage monsters within explosion range
+            # Damage unshielded monsters within explosion range
             expl_range = 200
-            for monster in monsters.shared.spritegroup:
-                m_distance = calc_distance(fb.rect.center, monster.rect.center)
-                print("monster distance = " + str(m_distance))
-                if m_distance < expl_range:
-                    # TODO - reduce damage with distance
-                    max_damage = 4
-                    damage_ratio = m_distance/expl_range
-                    damage_float = max_damage * damage_ratio
-                    damage = math.ceil(damage_float)
-                    print("monster damage = " + str(damage))
-                    monster.hit(damage)
+            all_walls = dungeontiles.shared.typegroup("WallTile")
+            # TODO - eliminate all walls outside explosion range
+            # near_walls = all_walls
+            near_walls = []
+            for test_wall in all_walls:
+                if (
+                    abs(test_wall.rect.center[0] - fb.rect.center[0]) < expl_range
+                    and
+                    abs(test_wall.rect.center[1] - fb.rect.center[1]) < expl_range
+                ):
+                    near_walls.append(test_wall)
 
-                    # TODO - reduce bump effect with distance
-                    if monster.dead is not True:
-                        angle = calc_angle(fb.rect.center, monster.rect.center)
-                        shift_sprite(monster, angle, 20)
+            for curr_monster in monsters.shared.spritegroup:
+                monster_dist = calc_distance(fb.rect.center, curr_monster.rect.center)
+                print(curr_monster)
+                print("monster distance = " + str(monster_dist))
 
-                        effects.shared.add("BloodHit", monster.get_data())
-                        soundeffects.add_shared("painhit")
+                if monster_dist < expl_range:
+                    line_of_explosion = (fb.rect.center, curr_monster.rect.center)
+
+                    # Monsters are shielded by other monsters.
+                    # NOTE: Don't allow a monster to shield itself.
+                    # NOTE: Overlaping monsters cannot shield each other.
+                    shielded = False
+                    for test_monster in monsters.shared.spritegroup:
+                        # Monster doesn't shield itself
+                        if test_monster is not curr_monster:
+                            # Overlapping monsters can't shield
+                            if not test_monster.rect.collidepoint(
+                                curr_monster.rect.center
+                            ):
+                                if test_monster.rect.clipline(line_of_explosion):
+                                    shielded = True
+                                    break
+
+                    if shielded is False:
+                        # Monsters are shielded by walls
+                        for tile in near_walls:
+                            if tile.rect.clipline(line_of_explosion):
+                                shielded = True
+                                break
+
+                    if shielded is False:  # The explosion does affect the monster
+                        # Reduce damage with distance
+                        dist_ratio = monster_dist/expl_range  # Calc the ratio 0 to 1
+                        dist_inv_ratio = 1 - dist_ratio  # Convert to 1 to 0
+
+                        max_damage = 4
+                        damage_float = max_damage * dist_inv_ratio  # multiply by max
+                        damage = math.ceil(damage_float)  # Round up to integer
+                        print("monster damage = " + str(damage))
+                        curr_monster.hit(damage)
+
+                        # Reduce bump with distance
+                        if monster.dead is not True:
+                            angle = calc_angle(fb.rect.center, curr_monster.rect.center)
+
+                            max_bump = 20
+                            bump = math.ceil(max_bump * dist_inv_ratio)
+                            shift_sprite(curr_monster, angle, bump)
+
+                            effects.shared.add("BloodHit", curr_monster.get_data())
+                            soundeffects.add_shared("painhit")
 
     # Remove dead monsters
     for monster in monsters.shared.spritegroup:
@@ -296,7 +350,7 @@ while game_on:
             soundeffects.add_shared("monsterkill")
 
     # Replace dead monsters
-    if len(monsters.shared.spritegroup) < 1:
+    if len(monsters.shared.spritegroup) < 2:
         rand_x = random.randrange(110, common.SCREEN_WIDTH - 110)
         rand_y = random.randrange(110, common.SCREEN_HEIGHT - 110)
         pos = {"x": rand_x, "y": rand_y}

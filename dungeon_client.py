@@ -245,8 +245,9 @@ while game_on:
                 gemdrag_start = clicked_gem.rect.center
                 gemdrag_id = clicked_gem.sprite_id
             elif clicked_monster is not None:
-                template = "request:bump-monster,id:{}\n"
-                new_request = template.format(clicked_monster.sprite_id)
+                angle = calc_angle(event.pos, clicked_monster.rect.center)
+                template = "request:bump-monster,id:{},angle:{}\n"
+                new_request = template.format(clicked_monster.sprite_id, angle)
                 print(new_request)
                 new_requests.append(new_request)
             elif clicked_tower is not None:
@@ -304,6 +305,7 @@ while game_on:
         response = None
 
     if response is not None:
+        # print(response)
         all_lines = response.splitlines(False)
 
         # Handle command lines in the response
@@ -374,6 +376,12 @@ while game_on:
 
     if gemdrag_start is not None:
         draw_arrow(screen, gemdrag_start, pygame.mouse.get_pos(), common.WHITE, 5)
+
+    '''
+    # DEBUG - draw monster's rectangles
+    for monster in monsters.shared.spritegroup:
+        pygame.draw.rect(screen, common.WHITE, monster.rect, width=1)
+    '''
 
     pygame.display.flip()
 
