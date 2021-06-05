@@ -108,38 +108,6 @@ monsters.shared.set_as_server()
 effects.shared.set_as_server()
 fireball.shared.set_as_server()
 
-def check_monster_shielded(fireball, monster, expl_range):
-    line_of_explosion = (fireball.rect.center, monster.rect.center)
-
-    # Monsters are shielded by other monsters.
-    # NOTE: Don't allow a monster to shield itself.
-    # NOTE: Overlaping monsters cannot shield each other.
-    for test_monster in monsters.shared.spritegroup:
-        # Monster doesn't shield itself
-        if test_monster is not monster:
-            # Overlapping monsters can't shield
-            if not test_monster.rect.collidepoint(
-                monster.rect.center
-            ):
-                if test_monster.rect.clipline(line_of_explosion):
-                    return True
-
-    all_walls = dungeontiles.shared.typegroup("WallTile")
-    # Eliminate all walls outside explosion range
-    near_walls = []
-    for test_wall in all_walls:
-        if (
-            abs(test_wall.rect.center[0] - fb.rect.center[0]) < expl_range
-            and
-            abs(test_wall.rect.center[1] - fb.rect.center[1]) < expl_range
-        ):
-            near_walls.append(test_wall)
-
-    for tile in near_walls:
-        if tile.rect.clipline(line_of_explosion):
-            return True
-
-    return False
 
 def shift_sprite(sprite, angle, distance):
     start_pos = sprite.rect.center
@@ -302,23 +270,28 @@ while game_on:
         fb.done = True
 
     # Explode completed fireballs
-    for fb in fireball.shared.spritegroup:
-        if fb.done is True:
+    for curr_fb in fireball.shared.spritegroup:
+        if curr_fb.done is True:
             soundeffects.add_shared("explosion")
-            effects.shared.add("ExplosionRed", fb.get_data())
-            fb.kill()
+            effects.shared.add("ExplosionRed", curr_fb.get_data())
+            curr_fb.kill()
 
             # Damage unshielded monsters within explosion range
             expl_range = 200
 
             for curr_monster in monsters.shared.spritegroup:
-                monster_dist = calc_distance(fb.rect.center, curr_monster.rect.center)
+                monster_dist = calc_distance(curr_fb.rect.center,
+                                             curr_monster.rect.center)
                 print(curr_monster)
                 print("monster distance = " + str(monster_dist))
 
                 if monster_dist < expl_range:
-                    monster_shielded = check_monster_shielded(fb, curr_monster,
-                                                              expl_range)
+                    line_of_explosion = (curr_fb.rect.center, curr_monster.rect.center)
+                    monster_shielded = False
+                    for tile in dungeontiles.shared.typegroup("WallTile"):
+                        if tile.rect.clipline(line_of_explosion):
+                            monster_shielded = True
+                            break
 
                     if monster_shielded is False:
                         # Reduce damage with distance
@@ -333,7 +306,8 @@ while game_on:
 
                         # Reduce bump with distance
                         if monster.dead is not True:
-                            angle = calc_angle(fb.rect.center, curr_monster.rect.center)
+                            angle = calc_angle(curr_fb.rect.center,
+                                               curr_monster.rect.center)
 
                             max_bump = 20
                             bump = math.ceil(max_bump * dist_inv_ratio)
