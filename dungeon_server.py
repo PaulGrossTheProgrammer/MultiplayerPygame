@@ -108,6 +108,38 @@ monsters.shared.set_as_server()
 effects.shared.set_as_server()
 fireball.shared.set_as_server()
 
+def check_monster_shielded(fireball, monster, expl_range):
+    line_of_explosion = (fireball.rect.center, monster.rect.center)
+
+    # Monsters are shielded by other monsters.
+    # NOTE: Don't allow a monster to shield itself.
+    # NOTE: Overlaping monsters cannot shield each other.
+    for test_monster in monsters.shared.spritegroup:
+        # Monster doesn't shield itself
+        if test_monster is not monster:
+            # Overlapping monsters can't shield
+            if not test_monster.rect.collidepoint(
+                monster.rect.center
+            ):
+                if test_monster.rect.clipline(line_of_explosion):
+                    return True
+
+    all_walls = dungeontiles.shared.typegroup("WallTile")
+    # Eliminate all walls outside explosion range
+    near_walls = []
+    for test_wall in all_walls:
+        if (
+            abs(test_wall.rect.center[0] - fb.rect.center[0]) < expl_range
+            and
+            abs(test_wall.rect.center[1] - fb.rect.center[1]) < expl_range
+        ):
+            near_walls.append(test_wall)
+
+    for tile in near_walls:
+        if tile.rect.clipline(line_of_explosion):
+            return True
+
+    return False
 
 def shift_sprite(sprite, angle, distance):
     start_pos = sprite.rect.center
@@ -278,17 +310,6 @@ while game_on:
 
             # Damage unshielded monsters within explosion range
             expl_range = 200
-            all_walls = dungeontiles.shared.typegroup("WallTile")
-            # TODO - eliminate all walls outside explosion range
-            # near_walls = all_walls
-            near_walls = []
-            for test_wall in all_walls:
-                if (
-                    abs(test_wall.rect.center[0] - fb.rect.center[0]) < expl_range
-                    and
-                    abs(test_wall.rect.center[1] - fb.rect.center[1]) < expl_range
-                ):
-                    near_walls.append(test_wall)
 
             for curr_monster in monsters.shared.spritegroup:
                 monster_dist = calc_distance(fb.rect.center, curr_monster.rect.center)
@@ -296,31 +317,10 @@ while game_on:
                 print("monster distance = " + str(monster_dist))
 
                 if monster_dist < expl_range:
-                    line_of_explosion = (fb.rect.center, curr_monster.rect.center)
+                    monster_shielded = check_monster_shielded(fb, curr_monster,
+                                                              expl_range)
 
-                    # Monsters are shielded by other monsters.
-                    # NOTE: Don't allow a monster to shield itself.
-                    # NOTE: Overlaping monsters cannot shield each other.
-                    shielded = False
-                    for test_monster in monsters.shared.spritegroup:
-                        # Monster doesn't shield itself
-                        if test_monster is not curr_monster:
-                            # Overlapping monsters can't shield
-                            if not test_monster.rect.collidepoint(
-                                curr_monster.rect.center
-                            ):
-                                if test_monster.rect.clipline(line_of_explosion):
-                                    shielded = True
-                                    break
-
-                    if shielded is False:
-                        # Monsters are shielded by walls
-                        for tile in near_walls:
-                            if tile.rect.clipline(line_of_explosion):
-                                shielded = True
-                                break
-
-                    if shielded is False:  # The explosion does affect the monster
+                    if monster_shielded is False:
                         # Reduce damage with distance
                         dist_ratio = monster_dist/expl_range  # Calc the ratio 0 to 1
                         dist_inv_ratio = 1 - dist_ratio  # Convert to 1 to 0
