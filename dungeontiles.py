@@ -103,4 +103,5 @@ class FireballTower(Tile):
 # Client/Server code
 
 class_list = (WallTile, TeleportSourceTile, TeleportTargetTile, FireballTower)
+print("creating shared group called: {}".format(__name__))
 shared = clientserver.SharedSpriteGroup(__name__, class_list)

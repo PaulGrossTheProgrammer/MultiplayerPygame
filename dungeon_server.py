@@ -1,10 +1,13 @@
 # Dungeon Internet Server
 
+import http.server
+import socketserver
 import socket
 import threading
 import queue
 import math
 import random
+# import time
 
 import pygame
 
@@ -31,9 +34,32 @@ hostname = socket.gethostname()
 local_ip = socket.gethostbyname(hostname)
 
 
+class WebManagerHandler(http.server.SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory="web", **kwargs)
+
+
+# Web management server code
+# TODO:
+#   httpd.server_close() when exiting???
+# Number of gems, number of monsters
+# Game reset
+
+class HttpManagerServerThread(threading.Thread):
+
+    ADDRESS = ("", common.HTTP_MANAGER_PORT)
+
+    def run(self):
+        with socketserver.TCPServer(self.ADDRESS, WebManagerHandler) as httpd:
+            print("serving at port", common.HTTP_MANAGER_PORT)
+            httpd.serve_forever()
+
+if common.HTTP_MANAGER_ENABLED is True:
+    print("HTTP Manager enabled. Starting web server...")
+    HttpManagerServerThread().start()
+
+
 class GameSocketListenerThread(threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
 
     def run(self):
         print("Internet Socket Server started on: [{}]".format(hostname))
@@ -46,8 +72,8 @@ class GameSocketListenerThread(threading.Thread):
             # the new Internet Game Client.
             GameServerSocketThread(clientAddress, socket).start()
 
-
 GameSocketListenerThread().start()
+
 
 socket_logins = {}  # Stores usernames for Client Sockets
 
@@ -57,7 +83,7 @@ socket_logins = {}  # Stores usernames for Client Sockets
 shared_request_queue = queue.Queue()
 
 
-# One SocketThread is created each time a Game client connects
+# A single SocketThread is created for each new Game client
 class GameServerSocketThread(threading.Thread):
     def __init__(self, clientAddress, clientsocket):
         threading.Thread.__init__(self)
@@ -98,48 +124,59 @@ class GameServerSocketThread(threading.Thread):
 # Game Server
 #
 
-# Set the shared sprites into server mode
-# All delta mode groups
+# Setup delta mode shared groups managed by the server
 gemstones.shared.set_as_server(enable_delta=True, delta_timeout_s=2)
 dungeontiles.shared.set_as_server(enable_delta=True)
 
-# All remaining groups
+# Setup remaining shared groups managed by the server
 monsters.shared.set_as_server()
 effects.shared.set_as_server()
 fireball.shared.set_as_server()
 
-def check_monster_shielded(fireball, monster, expl_range):
+expl_range = 80
+max_damage = 4
+max_bump = 20
+
+def is_monster_shielded(fireball, monster, expl_range):
     line_of_explosion = (fireball.rect.center, monster.rect.center)
 
-    # Monsters are shielded by other monsters.
-    # NOTE: Don't allow a monster to shield itself.
-    # NOTE: Overlaping monsters cannot shield each other.
     for test_monster in monsters.shared.spritegroup:
-        # Monster doesn't shield itself
-        if test_monster is not monster:
-            # Overlapping monsters can't shield
-            if not test_monster.rect.collidepoint(
-                monster.rect.center
-            ):
-                if test_monster.rect.clipline(line_of_explosion):
-                    return True
+        if test_monster is monster:
+            # Monster can't shield itself
+            continue
 
-    all_walls = dungeontiles.shared.typegroup("WallTile")
-    # Eliminate all walls outside explosion range
-    near_walls = []
-    for test_wall in all_walls:
-        if (
-            abs(test_wall.rect.center[0] - fb.rect.center[0]) < expl_range
-            and
-            abs(test_wall.rect.center[1] - fb.rect.center[1]) < expl_range
-        ):
-            near_walls.append(test_wall)
+        if test_monster.rect.collidepoint(monster.rect.center):
+            # Monsters that are very close can't shield each other,
+            # and instead both of them will get damaged.
+            continue
 
-    for tile in near_walls:
-        if tile.rect.clipline(line_of_explosion):
+        # Make a smaller shield rectangle using the monster's collision radius
+        shield_rect = test_monster.rect.copy()
+        shield_rect.update(test_monster.rect.left, test_monster.rect.top,
+                           test_monster.radius, test_monster.radius)
+        # Reposition shield_rect on the monster's center.
+        shield_rect.center = test_monster.rect.center
+        if shield_rect.clipline(line_of_explosion):
+            # This monster is in the way, so it's a shield
             return True
 
+    all_walls = dungeontiles.shared.typegroup("WallTile")
+    for tile in all_walls:
+        # Eliminate walls that are too far away. Assumes rect.clipline() is slow,
+        # therefore a quick distance check will make this loop faster
+        # if there are lots of walls to check.
+        if abs(tile.rect.center[0] - fireball.rect.center[0]) >= expl_range:
+            continue
+        if abs(tile.rect.center[1] - fireball.rect.center[1]) >= expl_range:
+            continue
+
+        if tile.rect.clipline(line_of_explosion):
+            # This tile is in the way, so it's a shield
+            return True
+
+    # Nothing was found to shield the monster from the explosion
     return False
+
 
 def shift_sprite(sprite, angle, distance):
     start_pos = sprite.rect.center
@@ -163,8 +200,11 @@ dungeontiles.shared.add("WallTile", data_xy((350, 300)))
 monster_action_counter = 0
 monster_action_trigger = common.frames_per_second / 2
 
+MIN_GEMSTONES = 0
+MIN_MONSTERS = 2
+
 # This is the main thread.
-# Inside the while loop the code never waits for anything,
+# Inside the while loop the code never waits for the shared queues.
 # Instead it always tries to loop at the required frames_per_second
 print("Game Running:")
 game_on = True
@@ -213,8 +253,7 @@ while game_on:
                         angle = float(data["angle"])
                         monster = monsters.shared.get(sprite_id)
                         if monster is not None:
-                            print("Bumping monster: " + str(monster))
-                            shift_sprite(monster, angle, 10)
+                            shift_sprite(monster, angle, 25)
                             soundeffects.add_shared("painhit")
                         response = "response:bumped-monster\n"
 
@@ -223,11 +262,19 @@ while game_on:
                         angle = float(data["angle"])
                         gem = gemstones.shared.get(sprite_id)
                         if gem is not None:
-                            print("Dragging gem: " + str(gem))
                             shift_sprite(gem, angle, 40)
                         response = "response:dragged-gem\n"
 
                     elif request_type == "add-fireball":
+                        # TODO - use new clientservef method to lookup sprite
+                        source = data["source"]
+                        print("source = {}".format(source))
+                        source_list = source.split("/")
+                        source_group = source_list[0]
+                        source_spriteid = int(source_list[1])
+                        source_sprite = dungeontiles.shared.get(source_spriteid)
+                        data["x"] = source_sprite.rect.center[0]
+                        data["y"] = source_sprite.rect.center[1]
                         sprite = fireball.shared.add("FireballRed", data)
                         soundeffects.add_shared("fireball")
                         response = "response:added-fireball\n"
@@ -302,40 +349,32 @@ while game_on:
         fb.done = True
 
     # Explode completed fireballs
-    for fb in fireball.shared.spritegroup:
-        if fb.done is True:
+    for curr_fb in fireball.shared.spritegroup:
+        if curr_fb.done is True:
             soundeffects.add_shared("explosion")
-            effects.shared.add("ExplosionRed", fb.get_data())
-            fb.kill()
+            effects.shared.add("ExplosionRed", curr_fb.get_data())
+            curr_fb.kill()
 
-            # Damage unshielded monsters within explosion range
-            expl_range = 200
-
+            # Damage and bump unshielded monsters within explosion range
             for curr_monster in monsters.shared.spritegroup:
-                monster_dist = calc_distance(fb.rect.center, curr_monster.rect.center)
-                print(curr_monster)
-                print("monster distance = " + str(monster_dist))
+                monster_dist = calc_distance(curr_fb.rect.center,
+                                             curr_monster.rect.center)
 
                 if monster_dist < expl_range:
-                    monster_shielded = check_monster_shielded(fb, curr_monster,
-                                                              expl_range)
-
-                    if monster_shielded is False:
+                    if is_monster_shielded(curr_fb, curr_monster, expl_range) is False:
                         # Reduce damage with distance
                         dist_ratio = monster_dist/expl_range  # Calc the ratio 0 to 1
                         dist_inv_ratio = 1 - dist_ratio  # Convert to 1 to 0
 
-                        max_damage = 4
                         damage_float = max_damage * dist_inv_ratio  # multiply by max
                         damage = math.ceil(damage_float)  # Round up to integer
-                        print("monster damage = " + str(damage))
                         curr_monster.hit(damage)
 
                         # Reduce bump with distance
-                        if monster.dead is not True:
-                            angle = calc_angle(fb.rect.center, curr_monster.rect.center)
+                        if curr_monster.dead is False:
+                            angle = calc_angle(curr_fb.rect.center,
+                                               curr_monster.rect.center)
 
-                            max_bump = 20
                             bump = math.ceil(max_bump * dist_inv_ratio)
                             shift_sprite(curr_monster, angle, bump)
 
@@ -343,14 +382,14 @@ while game_on:
                             soundeffects.add_shared("painhit")
 
     # Remove dead monsters
-    for monster in monsters.shared.spritegroup:
-        if monster.dead is True:
-            monster.kill()
-            effects.shared.add("BloodKill", monster.get_data())
+    for curr_monster in monsters.shared.spritegroup:
+        if curr_monster.dead is True:
+            curr_monster.kill()
+            effects.shared.add("BloodKill", curr_monster.get_data())
             soundeffects.add_shared("monsterkill")
 
     # Replace dead monsters
-    if len(monsters.shared.spritegroup) < 2:
+    if len(monsters.shared.spritegroup) < MIN_MONSTERS:
         rand_x = random.randrange(110, common.SCREEN_WIDTH - 110)
         rand_y = random.randrange(110, common.SCREEN_HEIGHT - 110)
         pos = {"x": rand_x, "y": rand_y}
@@ -360,7 +399,7 @@ while game_on:
         effects.shared.add("SparkleYellow", pos)
 
     # Replace gems
-    if len(gemstones.shared.spritegroup) < 0:
+    if len(gemstones.shared.spritegroup) < MIN_GEMSTONES:
         rand_x = random.randrange(110, common.SCREEN_WIDTH - 110)
         rand_y = random.randrange(110, common.SCREEN_HEIGHT - 110)
         pos = {"x": rand_x, "y": rand_y}

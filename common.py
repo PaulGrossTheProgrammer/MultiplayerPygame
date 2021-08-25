@@ -20,6 +20,9 @@ SCREEN_HEIGHT = 600
 
 frames_per_second = 25
 
+HTTP_MANAGER_ENABLED = False
+HTTP_MANAGER_PORT = 56788
+
 clock = pygame.time.Clock()
 
 def calc_distance(p1, p2):

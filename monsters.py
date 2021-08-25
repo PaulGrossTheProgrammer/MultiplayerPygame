@@ -135,10 +135,13 @@ class Monster(pygame.sprite.Sprite):
         self.rect.center = [int(self.position_x), int(self.position_y)]
 
     def hit(self, damage):
+        print("hit: Health before = {}".format(self.current_health))
         self.current_health -= damage
+        print("hit: Health after = {}".format(self.current_health))
         if self.current_health <= 0:
             self.current_health = 0
             self.dead = True
+            print("dead")
 
     def get_health_ratio(self):
         return self.current_health/self.start_health
@@ -172,7 +175,7 @@ class Grue(Monster):
         2, 2, filename=image_folder+"GrueBloodyGrinHorns.png")
     frames = sheet.get_frames()
 
-    radius = 20
+    radius = 16
     speed = 1.0
 
     start_health = 40
@@ -182,7 +185,7 @@ class PurplePeopleEater(Monster):
         4, 1, filename=image_folder+"PurplePeopleEater-02.png")
     frames = sheet.get_frames()
 
-    radius = 20
+    radius = 16
     speed = 1.3
 
     start_health = 20

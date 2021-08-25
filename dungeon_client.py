@@ -9,7 +9,7 @@ import time
 import pygame
 
 import common
-from common import calc_angle, calc_endpoint, calc_distance
+from common import calc_angle, calc_endpoint, calc_distance, BLACK, WHITE, RED
 import clientserver
 from clientserver import MAX_RESPONSE_BYTES
 import soundeffects
@@ -191,11 +191,21 @@ tower_locked = False
 
 soundeffects.set_global_volume(0.05)
 
-curr_gemtype = "GemGreen"
+def scroll(dx, dy):
+    # Scroll all the game elements
+    clientserver.client_scroll_all(dx, dy)
 
-fireball_start = None
+    for sprite in towerselected_group:
+        pos = sprite.rect.center
+        sprite.rect.center = (pos[0] + dx, pos[1] + dy)
+
+fireball_tower = None
 gemdrag_start = None
 gemdrag_id = None
+
+fireball_template = "request:add-fireball,source:{}/{},angle:{},distance:{}\n"
+bumpmonster_template = "request:bump-monster,id:{},angle:{}\n"
+gemdrag_template = "request:gem-drag,id:{},angle:{}\n"
 
 wait_for_update = False
 new_requests = []
@@ -211,29 +221,19 @@ while game_on:
             print("User closed the window")
             game_on = False
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_g:
-                curr_gemtype = "GemGreen"
-            if event.key == pygame.K_r:
-                curr_gemtype = "GemRed"
-            if event.key == pygame.K_p:
-                curr_gemtype = "GemPink"
-            if event.key == pygame.K_d:
-                curr_gemtype = "GemDiamond"
+            if event.key == pygame.K_DOWN:
+                scroll(0, -10)
+            if event.key == pygame.K_UP:
+                scroll(0, 10)
+            if event.key == pygame.K_RIGHT:
+                scroll(-10, 0)
+            if event.key == pygame.K_LEFT:
+                scroll(10, 0)
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
-            clicked_tower = dungeontiles.shared.collide_sprite_type(
-                event.pos, "FireballTower")
-
-            towerselected_group.empty()
-            if clicked_tower is None:
-                tower_locked = False
-                fireball_start = None
-            else:
-                fireball_start = clicked_tower.rect.center
-                effect = effects.FireCircle()
-                effect.set_position(clicked_tower.rect.center)
-                towerselected_group.add(effect)
-                tower_locked = True
+            if fireball_tower is not None:
+                towerselected_group.empty()
+                fireball_tower = None
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             clicked_gem = gemstones.shared.collide_sprite(event.pos)
@@ -246,33 +246,31 @@ while game_on:
                 gemdrag_id = clicked_gem.sprite_id
             elif clicked_monster is not None:
                 angle = calc_angle(event.pos, clicked_monster.rect.center)
-                template = "request:bump-monster,id:{},angle:{}\n"
-                new_request = template.format(clicked_monster.sprite_id, angle)
+                new_request = bumpmonster_template.format(
+                    clicked_monster.sprite_id, angle)
                 print(new_request)
                 new_requests.append(new_request)
             elif clicked_tower is not None:
-                fireball_start = clicked_tower.rect.center
+                fireball_tower = clicked_tower
                 effect = effects.FireCircle()
                 effect.set_position(clicked_tower.rect.center)
                 towerselected_group.add(effect)
 
-        if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            if fireball_start is not None:
+            if (
+                fireball_tower is not None and
+                clicked_tower is None and gemdrag_start is None
+            ):
+                fireball_start = fireball_tower.rect.center
                 angle = calc_angle(fireball_start, event.pos)
                 distance = calc_distance(fireball_start, event.pos)
-                template = "request:add-fireball,x:{},y:{},angle:{},distance:{}\n"
-                new_request = template.format(
-                    fireball_start[0], fireball_start[1], angle, distance)
+                new_request = fireball_template.format(
+                    "dungeontiles", fireball_tower.sprite_id, angle, distance)
                 new_requests.append(new_request)
 
-                if tower_locked is False:
-                    towerselected_group.empty()
-                    fireball_start = None
-
+        if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             if gemdrag_start is not None:
                 angle = calc_angle(gemdrag_start, event.pos)
-                template = "request:gem-drag,id:{},angle:{}\n"
-                new_request = template.format(gemdrag_id, angle)
+                new_request = gemdrag_template.format(gemdrag_id, angle)
 
                 gemdrag_start = None
                 gemdrag_id = None
@@ -358,29 +356,31 @@ while game_on:
     cursor.set_pos(curson_pos)
 
     # Draw game screen
-    screen.fill(common.BLACK)
+    screen.fill(BLACK)
 
     gemstones.shared.draw(screen)
     dungeontiles.shared.draw(screen)
     monsters.shared.draw(screen)
     fireball.shared.draw(screen)
     effects.shared.draw(screen)
+
     towerselected_group.draw(screen)
 
     status_group.draw(screen)
     cursor_group.draw(screen)
 
     # Display arrows
-    if fireball_start is not None:
-        draw_arrow(screen, fireball_start, pygame.mouse.get_pos(), common.RED, 5)
+    if gemdrag_start is None and fireball_tower is not None:
+        start = fireball_tower.rect.center
+        draw_arrow(screen, start, pygame.mouse.get_pos(), RED, 5)
 
     if gemdrag_start is not None:
-        draw_arrow(screen, gemdrag_start, pygame.mouse.get_pos(), common.WHITE, 5)
+        draw_arrow(screen, gemdrag_start, pygame.mouse.get_pos(), WHITE, 5)
 
     '''
     # DEBUG - draw monster's rectangles
     for monster in monsters.shared.spritegroup:
-        pygame.draw.rect(screen, common.WHITE, monster.rect, width=1)
+        pygame.draw.rect(screen, WHITE, monster.rect, width=1)
     '''
 
     pygame.display.flip()

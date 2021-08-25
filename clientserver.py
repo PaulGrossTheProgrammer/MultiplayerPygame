@@ -115,6 +115,19 @@ def set_position(sprite, pos):
     group = getattr(sprite, "group")
     group.set_position(sprite, pos)
 
+class ClientOffset():
+    x = 0
+    y = 0
+
+client_offset_singleton = ClientOffset()
+
+def client_scroll_all(dx, dy):
+    client_offset_singleton.x += dx
+    client_offset_singleton.y += dy
+
+    for group_name in groups_all:
+        group = groups_all[group_name]
+        group.client_scroll(dx, dy)
 
 class SharedSpriteGroup():
     '''Sprite Group that handles creating and removing distributed sprites.
@@ -131,6 +144,9 @@ class SharedSpriteGroup():
     OPTIONALLY: Sprites can declare an update_server() method that defines
     behaviour that only the server executes.
     '''
+
+    # These client offsets track the client's own scrolling
+    client_offset = client_offset_singleton
 
     update_template = "response:update,group:{}\n"
     update_template_empty = "response:update,group:{},type:EMPTY\n"
@@ -240,6 +256,14 @@ class SharedSpriteGroup():
                 # Remove id from the dict
                 sprite_id = int(data.pop("id"))
                 id_list.append(sprite_id)
+
+                # TODO: Adjust X and X for scroll position...
+                if "x" in data:
+                    x = float(data.get("x")) + self.client_offset.x
+                    data["x"] = x
+                if "y" in data:
+                    y = float(data.get("y")) + self.client_offset.y
+                    data["y"] = y
 
                 sprite = self.get(sprite_id)
                 if sprite is None:
@@ -395,6 +419,16 @@ class SharedSpriteGroup():
 
                 print(data)
 
+            # FIXME - doesn't work properly yet
+            # For clients, detect x and y and adjust for scrolling offsets
+            # if self.server is False:
+            if "x" in data:
+                x = float(data.get("x")) + self.client_offset.x
+                data["x"] = x
+            if "y" in data:
+                y = float(data.get("y")) + self.client_offset.y
+                data["y"] = y
+
             # Maybe if rem_id=-1, all sprites in group are cleared?
             if "add_id" in data:
                 sprite_id = int(data["add_id"])
@@ -455,6 +489,11 @@ class SharedSpriteGroup():
         self.spritegroup.empty()
         self.next_id = 1
 
+    def client_scroll(self, delta_x, delta_y):
+        for sprite in self.spritegroup:
+            pos = sprite.rect.center
+            sprite.rect.center = (pos[0] + delta_x, pos[1] + delta_y)
+
     def add(self, typename, data=None, sprite_id=None):
 
         if sprite_id is None:
@@ -467,6 +506,7 @@ class SharedSpriteGroup():
         # TODO - handle incorrect typenames
         constructor = self.class_dict[typename]
         sprite = constructor()
+
         sprite.set_data(data)
 
         setattr(sprite, "sprite_id", sprite_id)
